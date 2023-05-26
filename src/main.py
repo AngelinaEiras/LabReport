@@ -20,4 +20,4 @@ for row in ws.iter_cols():
         if col.value and type(col.value) == str and "Results" in col.value: 
             print(row, col.col_idx)
 
-ws.
+#ws.
