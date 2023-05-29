@@ -1,4 +1,4 @@
-<mxfile host="Electron" modified="2023-05-29T10:17:50.538Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" version="21.2.8" etag="QWfuexC9_3Mvn0wYDK5T" type="device" pages="6">
+<mxfile host="Electron" modified="2023-05-29T10:35:25.212Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" version="21.2.8" etag="qcg4M0XrS4TD6WMdOLEk" type="device" pages="6">
   <diagram id="v7ZgVMCDCKATnrwwI6ck" name="Use-cases">
     <mxGraphModel dx="961" dy="992" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -16,8 +16,8 @@
         <mxCell id="iJNp8zTLhtuYe7hRtah3-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=1;exitDx=0;exitDy=0;" parent="1" source="iJNp8zTLhtuYe7hRtah3-6" target="iJNp8zTLhtuYe7hRtah3-8" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="398" y="650" />
-              <mxPoint x="470" y="650" />
+              <mxPoint x="398" y="700" />
+              <mxPoint x="398" y="700" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -34,12 +34,13 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="iJNp8zTLhtuYe7hRtah3-8" value="Visualization of data" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="380" y="770" width="120" height="80" as="geometry" />
+          <mxGeometry x="380" y="730" width="120" height="80" as="geometry" />
         </mxCell>
         <mxCell id="iJNp8zTLhtuYe7hRtah3-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="iJNp8zTLhtuYe7hRtah3-9" target="iJNp8zTLhtuYe7hRtah3-8" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="400" y="700" />
+              <mxPoint x="480" y="720" />
+              <mxPoint x="480" y="720" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -113,7 +114,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="OXpNapWelrpn4iQs3Fq-" name="Domain">
-    <mxGraphModel dx="474" dy="843" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="817" dy="843" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
