@@ -26,23 +26,12 @@ class ExcellImporter:
 
 
     def __open_file(self,path:str, sheet_name:str):
-
-### TEMP ###
-path = "tests/artifacts/20230224_triton_VVB.xlsx"
-sheet_name = "Plate 1 - Sheet1 (2)"
-############
-
-# excell_file = pd.ExcelFile(path)
-# self.csv_file = pd.read_excel(excell_file, sheet_name=sheet_name).to_csv (sheet_name+".csv", index = None, header=True)
-wb = load_workbook(filename = path)
-ws = wb.get_sheet_by_name(sheet_name)
-print(ws.dimensions)
-
-
+        pass
 
 
     def __find_starting_line(self):
-        while(True):pass
+        while(True):
+            pass
             
     
     def __find_next_table(self):
@@ -50,3 +39,16 @@ print(ws.dimensions)
 
     def load_board_reading(self):
         pass
+
+
+
+    ### TEMP ###
+    path = "tests/artifacts/20230224_triton_VVB.xlsx"
+    sheet_name = "Plate 1 - Sheet1 (2)"
+    ############
+    
+    # excell_file = pd.ExcelFile(path)
+    # self.csv_file = pd.read_excel(excell_file, sheet_name=sheet_name).to_csv (sheet_name+".csv", index = None, header=True)
+    wb = load_workbook(filename = path)
+    ws = wb.get_sheet_by_name(sheet_name)
+    print(ws.dimensions)
