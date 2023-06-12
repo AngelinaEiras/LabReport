@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd 
+import streamlit_pandas as sp
 import numpy as np
-from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
+from st_aggrid import AgGrid
+from st_aggrid.grid_options_builder import GridOptionsBuilder
+from st_aggrid import GridUpdateMode, DataReturnMode, GridOptionsBuilder, ColumnsAutoSizeMode
 import streamlit.components.v1 as components
 import dataset_finder as dsfind
 
@@ -33,6 +36,9 @@ def get_df():
 
 dtfs = get_df()
 
+
+#############################################################################
+
 # Set the title of the app
 st.title('LabReport') # st.title("My Streamlit App")
     
@@ -40,14 +46,87 @@ st.title('LabReport') # st.title("My Streamlit App")
 st.header("Welcome!")
 st.write("This is a basic Streamlit app.")
 
+#st.sidebar.header("Options")
+
 for data in dtfs:
 
-    builder = GridOptionsBuilder.from_dataframe(data)
-    builder.configure_default_column(editable=True)
-    go = builder.build()
+    # st.text(type(data)) # -> <class 'pandas.core.frame.DataFrame'>
+    all_widgets = sp.create_widgets(data)
+    res = sp.filter_df(data, all_widgets)
+    st.write(res)
 
-    #uses the gridOptions dictionary to configure AgGrid behavior.
-    AgGrid(data, gridOptions=go)
+
+    gd = GridOptionsBuilder.from_dataframe(data)
+    gd.configure_pagination(enabled=True)
+    gd.configure_default_column(
+        resizable=True,
+        filterable=True,
+        editable=True, 
+        groupable=True
+        )
+
+    gd.configure_grid_options(
+        autoGroupColumnDef=dict(
+        minWidth=300, 
+        pinned="left", 
+        cellRendererParams=dict(suppressCount=True)
+        )
+        )
+    go = gd.build()
+
+    grid_table = AgGrid(data,
+                        gridOptions=go,
+                        fit_columns_on_grid_load=True,
+                        height=300,
+                        theme='streamlit',
+                        update_mode=GridUpdateMode.GRID_CHANGED,
+                        reload_data=True,
+                        allow_unsafe_jscode=True,
+                        editable = True
+                        )
+    
+
+    #AgGrid(data, columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS)
+    #st.dataframe(data, use_container_width=True)
+
+
+    # Create a dictionary to store the new column names
+    new_column_names = {}
+
+    # Display input fields for each column name
+    for column in data.columns:
+        new_name = st.text_input(f"Enter new name for '{column}'", value=column)
+        new_column_names[column] = new_name
+
+    # Rename the columns based on user input
+    data = data.rename(columns=new_column_names)
+
+    # Render the updated DataFrame
+    st.dataframe(data)
+
 
 
 # TODO: a cada dataset encontrado no excel associar a um botão. ir trabalhando os datasets individualmente. no fim juntar gráficos
+
+
+
+
+############################################################3
+
+
+
+# @st.cache
+# def convert_df(df):
+#     # IMPORTANT: Cache the conversion to prevent computation on every rerun
+#     return df.to_csv().encode('utf-8')
+
+# st.download_button(
+#     label="Download data as CSV",
+#     data = 
+#     file_name='large_df.csv',
+#     mime='text/csv',
+# )
+
+
+
+
