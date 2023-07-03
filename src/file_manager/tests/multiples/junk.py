@@ -253,3 +253,4 @@ cv = sd / np.mean(sub_df) * 100
 print(f"Median: {median}\nMean: {mean.item()}\nDesvio Padrão: {sd.item()}\nCoeficiente de Variação: {cv.item()}")
 
 '''
+
