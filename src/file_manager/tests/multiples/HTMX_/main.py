@@ -41,49 +41,34 @@ dtfs = get_df()
 
 ######################################################################################
 
-from enum import Enum
-from fastapi import FastAPI
-from pydantic import BaseModel
-
 
 
 app = FastAPI()
+
 templates = Jinja2Templates(directory="templates")
 
-
-class Category(Enum):
-    TOOLS = "tools"
-    CONSUMABLES = "consumables"
-
-
-class Item(BaseModel):
-    name: str
-    price: float
-    count: int
-    id: int
-    category: Category
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    data = {
+        "page": "Home page"
+    }
+    return templates.TemplateResponse("index.html", {"request": request, "data": data})
 
 
-items = {
-    0: Item(name= "Hammer", price= 8.99, count= 60, id= 0, category=Category.TOOLS),
-    1: Item(name= "Pliers", price= 8.99, count= 60, id= 1, category=Category.TOOLS),
-    2: Item(name= "Nails", price= 8.99, count= 60, id= 2, category=Category.CONSUMABLES)
-}
-
-@app.get("/")
-def index() -> dict[str, dict[int, Item]]:
-    return {"items": items}
+@app.get("/page/{page_name}", response_class=HTMLResponse)
+async def page(request: Request, page_name: str):
+    data = {
+        "page": page_name
+    }
+    return templates.TemplateResponse("index.html", {"request": request, "data": data})
 
 
 
-
-# 
 # @app.get("/index/", response_class=HTMLResponse)
-# 
-# 
+
+
 # def read_dataframe(request: Request):
-    # for data in dtfs:
-        # df = pd.DataFrame(data)
-        # #TODO: make in a way that all the datasets appear
-    # return templates.TemplateResponse("index.html", {"request": request, "df": df.to_html()})
-# 
+#     for data in dtfs:
+#         df = pd.DataFrame(data)
+#         #TODO: make in a way that all the datasets appear
+#     return templates.TemplateResponse("index.html", {"request": request, "df": df.to_html()})
