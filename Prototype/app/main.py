@@ -17,12 +17,6 @@ from typing import Annotated, List
 import pandas as pd
 
 
-# obtain secret key by run <openssl rand -hex 32> on bash
-SECRET_KEY = "10e1e27475b4cbaadd3220cec789e9a860339330b4503bb58303955697dce449"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-
 app = FastAPI()
 
 
