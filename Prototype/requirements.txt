@@ -9,3 +9,6 @@ Markdown==3.3.6
 pytest==6.2.5
 openpyxl
 pandas
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]

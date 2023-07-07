@@ -1,14 +1,26 @@
-from fastapi import FastAPI, Request, File, UploadFile
+from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordRequestForm
 
 from app.library.helpers import *
 from app.routers import twoforms, unsplash, accordion
 from app.logic.load_dataset import LoadDataframeFromExcell
+from app.logic.users import Token, TokenData
 
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from pydantic import BaseModel
 from typing import Annotated, List
 import pandas as pd
+
+
+# obtain secret key by run <openssl rand -hex 32> on bash
+SECRET_KEY = "10e1e27475b4cbaadd3220cec789e9a860339330b4503bb58303955697dce449"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 app = FastAPI()
