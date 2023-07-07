@@ -1,33 +1,55 @@
-<h1>Welcome to FastAPI Website Starter Demo</h1>
-
 <p>
-Please read <a href="https://levelup.gitconnected.com/building-a-website-starter-with-fastapi-92d077092864">my Medium article for details.</a>
+<div>
+<script>
+date = new Date().toLocaleDateString();
+document.write(date);
+</script>
+</div>
+
+Created at July of 2023
 </p>
 
-<p>
-This project uses <a href="https://fastapi.tiangolo.com/">FastAPI</a>, <a href="https://jinja.palletsprojects.com/en/2.11.x/">Jinja2</a>, and <a href="https://getbootstrap.com/docs/4.1/getting-started/introduction/">Bootstrap4</a>.
-</p>
+<h1>Welcome to LabReport Demo</h1>
+
+This tool aims to facilitate communication among scientists and enhance the visualization of conducted experiments and their obtained results.
 
 
-<h2>Updated</h2>
 
+<!-- home.md -->
 
-2021-08-15
+## Upload File
 
-## Python environment
+<div id="drop-area">
+  <form class="file-form">
+    <input type="file" id="fileElem" multiple accept=".txt, .csv" onchange="handleFiles(this.files)">
+    <label class="file-label" for="fileElem">Drag and drop a file here or click to browse</label>
+  </form>
+</div>
 
-3.9.6
-
-## Requirements
-
-```sh
-requests==2.26.0
-fastapi==0.70.0
-uvicorn==0.15.0
-python-dotenv==0.19.1
-aiofiles==0.7.0
-python-multipart==0.0.5
-jinja2==3.0.2
-Markdown==3.3.4
-pytest==6.2.5
-```
+<script>
+    function handleFiles(files) {
+      // Create a FormData object
+      const formData = new FormData();
+  
+      // Append the files to the FormData object
+      for (let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+      }
+  
+      // Make a POST request to your FastAPI endpoint to handle the uploaded files
+      fetch("/process-files", {
+        method: "POST",
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Handle the response from the server
+        console.log(data);
+        // Perform any desired actions based on the response
+      })
+      .catch(error => {
+        // Handle any errors that occurred during the request
+        console.error(error);
+      });
+    }
+  </script>
