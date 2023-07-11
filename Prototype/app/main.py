@@ -16,14 +16,13 @@ from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
 
-# get users
-from app.logic.users import *
-
 
 app = FastAPI()
 
 
 templates = Jinja2Templates(directory="templates")
+
+
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -67,26 +66,39 @@ async def show_page(request: Request):
 
 # não users, mas perfil de cada pessoa que tem acesso? se está on ou não
 
-@app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(ser_db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException (status_code= status.HTTP_401_UNAUTHORIZED,
-                             detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+
+
+
+
+
+###################################################################################
+
+
+@app.post("/table/report", response_class=HTMLResponse)
+async def generate_report(request: Request):
+    form_data = await request.form()
+    researcher_name = form_data.get("researcher_name")
+    experiment_date = form_data.get("experiment_date")
+    cell_type = form_data.get("cell_type")
+    cell_count = form_data.get("cell_count")
+
+    report_template = f"""Research Report:
     
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires)
-    return {"access_token": access_token, "token_type": "bearer"}
+        Researcher: {researcher_name}
+        Experiment Date: {experiment_date}
 
-@app.get("/users/me", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+        Cell Type: {cell_type}
+        Cell Count: {cell_count}
 
-@app.get("/users/", response_class=HTMLResponse)
-async def read_own_items(current_user: User = Depends(get_current_active_user)):#, request: Request):
-    data = openfile("users.md")
-    return templates.TemplateResponse("table_page.html", {"data": data}),[{"item_id": 1, "owner": current_user}]#{"request": request, "data": data}),[{"item_id": 1, "owner": current_user}]
+        Please fill in the details below:
+        - Methodology:
+        - Results:
+        - Conclusion:
+
+        Thank you for your contribution.
+        """
+    data = openfile("report.md")
+    return templates.TemplateResponse("report.html", {"request": request,  "data": data, "report_template": report_template})
 
 
 
