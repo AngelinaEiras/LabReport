@@ -11,7 +11,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from typing import Annotated, List
+from typing import List
 
 
 # obtain secret key by run <openssl rand -hex 32> on bash
@@ -69,7 +69,7 @@ class UserInDB(User):
 # variáveis que não sei onde ficam
 # ver outro vídeo para fazer isto no seu file independente
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth_2_scheme: OAuth2AuthorizationCodeBearer(tokenUrl="token")
+oauth2_scheme = OAuth2AuthorizationCodeBearer(tokenUrl="token", authorizationUrl="URL_FOR_OAUTH2_AUTHORIZATION")
 
 
 app = FastAPI()
@@ -104,6 +104,34 @@ def create_access_token(data: dict, expires_delta: timedelta or None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credential_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, 
+                                         detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credential_exception
+
+        token_data = TokenData(username=username)
+
+    except JWTError:
+        raise credential_exception
+    
+    user = get_user(ser_db, username=token_data.username)
+    if user is None:
+        raise credential_exception
+    
+    return user
+
+async def get_current_active_user(current_user: UserInDB = Depends(get_current_user)):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    
+    return current_user
+
 
 
 

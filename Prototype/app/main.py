@@ -4,17 +4,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordRequestForm
 
+# load datasets
 from app.library.helpers import *
 from app.routers import twoforms, unsplash, accordion
 from app.logic.load_dataset import LoadDataframeFromExcell
-from app.logic.users import Token, TokenData
 
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from typing import Annotated, List
+from typing import List, Optional
 import pandas as pd
+
+# get users
+from app.logic.users import *
 
 
 app = FastAPI()
@@ -59,3 +62,31 @@ async def show_page(request: Request):
 #         results.append(df.to_dict())
 
 #     return {"results": results}
+
+
+
+# não users, mas perfil de cada pessoa que tem acesso? se está on ou não
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(ser_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException (status_code= status.HTTP_401_UNAUTHORIZED,
+                             detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/users/me", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+@app.get("/users/", response_class=HTMLResponse)
+async def read_own_items(current_user: User = Depends(get_current_active_user)):#, request: Request):
+    data = openfile("users.md")
+    return templates.TemplateResponse("table_page.html", {"data": data}),[{"item_id": 1, "owner": current_user}]#{"request": request, "data": data}),[{"item_id": 1, "owner": current_user}]
+
+
+
