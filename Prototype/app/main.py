@@ -8,6 +8,8 @@ from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordReques
 from app.library.helpers import *
 from app.routers import twoforms, unsplash, accordion
 from app.logic.load_dataset import LoadDataframeFromExcell
+from app.logic.report import ReportGenerator
+
 
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -76,3 +78,10 @@ def get_user(request: Request):
     user_list = list(user_db.values())
     data = openfile("users.md")
     return templates.TemplateResponse("users.html", {"request": request, "data": data, "list": user_list})
+
+
+@app.get('/report', response_class=HTMLResponse)
+def get_user(request: Request):
+    report_generator = ReportGenerator()
+    data = openfile("report.md")
+    return templates.TemplateResponse("report.html", {"request": request, "data": data, "dataframe":report_generator})
