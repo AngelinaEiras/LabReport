@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Report Form{% endblock %}
+
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block page_content %}
+    <main role="main" class="container">
+        <h1>Report Form</h1>
+        <form action="/submit-report" method="post">
+            <label for="report_title">Report Title:</label>
+            <input type="text" id="report_title" name="report_title" required><br><br>
+
+            <label for="report_description">Report Description:</label>
+            <textarea id="report_description" name="report_description" required></textarea><br><br>
+
+            <button type="submit">Submit Report</button>
+        </form>
+    </main><!-- /.container -->
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+{% endblock %}

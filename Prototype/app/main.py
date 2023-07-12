@@ -87,19 +87,29 @@ def get_report(request: Request):
 
 
 # Report
-@app.get('/report', response_class=HTMLResponse)
-@app.post('/report', response_class=HTMLResponse)
-def report(request: Request, report_data: Optional[ReportRequest] = None):
-    report_generator = ReportGenerator()
-    if request.method == "GET":
-        data = openfile("report.md")
-        return templates.TemplateResponse("report.html", {"request": request, "data": data})
-    elif request.method == "POST" and report_data:
+# @app.route('/report', methods=['GET', 'POST'])
+# def report(request: Request):
+#     if request.method == 'GET':
+#         return templates.TemplateResponse("report_form.html", {"request": request})
+#     elif request.method == 'POST':
+#         report_data = ReportRequest(**request.form)
+#         purpose = report_data.report_title
+#         findings = report_data.report_description
+#         report_generator = ReportGenerator()
+#         report = report_generator.ask_question(purpose, findings)
+#         return templates.TemplateResponse("submitted_report.html", {"request": request, "report": report})
+
+
+@app.route('/report', methods=['GET', 'POST'])
+def report(request: Request):
+    if request.method == 'GET':
+        return templates.TemplateResponse("report_form.html", {"request": request})
+    elif request.method == 'POST':
+        report_data = ReportRequest(**request.form)
         purpose = report_data.report_title
         findings = report_data.report_description
+        report_generator = ReportGenerator()
         report = report_generator.ask_question(purpose, findings)
-        return templates.TemplateResponse("submitted_report.html", {"request": request, "report": report})
-    else:
-        raise HTTPException(status_code=400, detail="Invalid request")
+        return templates.TemplateResponse("report_form.html", {"request": request, "report": report})
 
 
