@@ -80,28 +80,10 @@ def get_user(request: Request):
     return templates.TemplateResponse("users.html", {"request": request, "data": data, "list": user_list})
 
 
-@app.get('/report', response_class=HTMLResponse)
+# Report
+@app.route('/report', methods=['GET', 'POST'])
 def get_report(request: Request):
     data = openfile("report.md")
-    return templates.TemplateResponse("report.html", {"request": request, "data": data})
-
-
-# Report
-# @app.route('/report', methods=['GET', 'POST'])
-# def report(request: Request):
-#     if request.method == 'GET':
-#         return templates.TemplateResponse("report_form.html", {"request": request})
-#     elif request.method == 'POST':
-#         report_data = ReportRequest(**request.form)
-#         purpose = report_data.report_title
-#         findings = report_data.report_description
-#         report_generator = ReportGenerator()
-#         report = report_generator.ask_question(purpose, findings)
-#         return templates.TemplateResponse("submitted_report.html", {"request": request, "report": report})
-
-
-@app.route('/report', methods=['GET', 'POST'])
-def report(request: Request):
     if request.method == 'GET':
         return templates.TemplateResponse("report_form.html", {"request": request})
     elif request.method == 'POST':
@@ -110,6 +92,6 @@ def report(request: Request):
         findings = report_data.report_description
         report_generator = ReportGenerator()
         report = report_generator.ask_question(purpose, findings)
-        return templates.TemplateResponse("report_form.html", {"request": request, "report": report})
+        return templates.TemplateResponse("report_form.html", {"request": request, "report": report, "data": data})
 
 

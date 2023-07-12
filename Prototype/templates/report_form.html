@@ -7,17 +7,25 @@
 {% endblock %}
 
 {% block page_content %}
+    {% include 'include/sidebar.html' %}
+
     <main role="main" class="container">
-        <h1>Report Form</h1>
-        <form action="/submit-report" method="post">
-            <label for="report_title">Report Title:</label>
-            <input type="text" id="report_title" name="report_title" required><br><br>
+        {% if report %}
+            <h1>Submitted Report</h1>
+            <p>Purpose: {{ report.Purpose }}</p>
+            <p>Findings: {{ report.Findings }}</p>
+        {% else %}
+            <h2>Report Form</h2>
+            <form action="/report" method="post">
+                <label for="report_title">Report Title:</label>
+                <input type="text" id="report_title" name="report_title" required><br><br>
 
-            <label for="report_description">Report Description:</label>
-            <textarea id="report_description" name="report_description" required></textarea><br><br>
+                <label for="report_description">Report Description:</label>
+                <textarea id="report_description" name="report_description" required></textarea><br><br>
 
-            <button type="submit">Submit Report</button>
-        </form>
+                <button type="submit">Submit Report</button>
+            </form>
+        {% endif %}
     </main><!-- /.container -->
 {% endblock %}
 
