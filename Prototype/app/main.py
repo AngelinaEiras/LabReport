@@ -65,40 +65,14 @@ async def show_page(request: Request):
 
 
 # não users, mas perfil de cada pessoa que tem acesso? se está on ou não
+user_db = {
+    'Filipa':{'username':'Filipa Lebre', 'email':'fl@inl.int', 'group':'nanosafety'},
+    'Andreia':{'username':'Andreia Carvalho', 'email':'ac@inl.int', 'group':'nanosafety'},
+    'Vania':{'username':'Vania Vilas-Boas', 'email':'vb@inl.int', 'group':'nanosafety'}
+}
 
-
-
-
-
-
-###################################################################################
-
-
-@app.post("/table/report", response_class=HTMLResponse)
-async def generate_report(request: Request):
-    form_data = await request.form()
-    researcher_name = form_data.get("researcher_name")
-    experiment_date = form_data.get("experiment_date")
-    cell_type = form_data.get("cell_type")
-    cell_count = form_data.get("cell_count")
-
-    report_template = f"""Research Report:
-    
-        Researcher: {researcher_name}
-        Experiment Date: {experiment_date}
-
-        Cell Type: {cell_type}
-        Cell Count: {cell_count}
-
-        Please fill in the details below:
-        - Methodology:
-        - Results:
-        - Conclusion:
-
-        Thank you for your contribution.
-        """
-    data = openfile("report.md")
-    return templates.TemplateResponse("report.html", {"request": request,  "data": data, "report_template": report_template})
-
-
-
+@app.get('/users', response_class=HTMLResponse)
+def get_user(request: Request):
+    user_list = list(user_db.values())
+    data = openfile("users.md")
+    return templates.TemplateResponse("users.html", {"request": request, "data": data, "list": user_list})
