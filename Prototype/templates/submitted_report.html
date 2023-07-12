@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Submitted Report{% endblock %}
+
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block page_content %}
+    {% include 'include/sidebar.html' %}
+
+    <main role="main" class="container">
+        <h1>Submitted Report</h1>
+        <p>Purpose: {{ report.Purpose }}</p>
+        <p>Findings: {{ report.Findings }}</p>
+    </main><!-- /.container -->
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+{% endblock %}

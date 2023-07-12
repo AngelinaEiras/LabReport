@@ -8,7 +8,7 @@ from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordReques
 from app.library.helpers import *
 from app.routers import twoforms, unsplash, accordion
 from app.logic.load_dataset import LoadDataframeFromExcell
-from app.logic.report import ReportGenerator
+from app.logic.report import ReportGenerator, ReportRequest
 
 
 from datetime import datetime, timedelta
@@ -81,7 +81,25 @@ def get_user(request: Request):
 
 
 @app.get('/report', response_class=HTMLResponse)
-def get_user(request: Request):
-    report_generator = ReportGenerator()
+def get_report(request: Request):
     data = openfile("report.md")
-    return templates.TemplateResponse("report.html", {"request": request, "data": data, "dataframe":report_generator})
+    return templates.TemplateResponse("report.html", {"request": request, "data": data})
+
+
+# Report
+@app.get('/report', response_class=HTMLResponse)
+@app.post('/report', response_class=HTMLResponse)
+def report(request: Request, report_data: Optional[ReportRequest] = None):
+    report_generator = ReportGenerator()
+    if request.method == "GET":
+        data = openfile("report.md")
+        return templates.TemplateResponse("report.html", {"request": request, "data": data})
+    elif request.method == "POST" and report_data:
+        purpose = report_data.report_title
+        findings = report_data.report_description
+        report = report_generator.ask_question(purpose, findings)
+        return templates.TemplateResponse("submitted_report.html", {"request": request, "report": report})
+    else:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+

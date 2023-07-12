@@ -1,24 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}FastAPI Starter{% endblock %}
-{% block head %}
-{{ super() }}
+{% block title %}Report Form{% endblock %}
 
+{% block head %}
+    {{ super() }}
 {% endblock %}
 
 {% block page_content %}
-{% include 'include/sidebar.html' %}
+    {% include 'include/sidebar.html' %}
 
-<main>
-    <h1> ola</h1>
-</main>
+    <main role="main" class="container">
+        <div class="row">
+            <div class="col">
+                {{ data.text|safe }}
+            </div>
+        </div>
+        <div class="row">
+            <form action="/submit-report" method="post">
+                <h2>Report Form</h2>
+                <label for="report_title">Report Title:</label>
+                <input type="text" id="report_title" name="report_title" required><br><br>
 
-{{data.page}}
+                <label for="report_description">Report Description:</label>
+                <textarea id="report_description" name="report_description" required></textarea><br><br>
 
+                <button type="submit">Submit Report</button>
+            </form>
+        </div>
+    </main><!-- /.container -->
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-
-
+    {{ super() }}
 {% endblock %}
