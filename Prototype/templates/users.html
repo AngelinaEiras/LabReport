@@ -1,18 +1,19 @@
+<!-- users.html -->
 {% extends "base.html" %}
 
-{% block title %}User List{% endblock %}
+{% block title %}Users{% endblock %}
 
 {% block head %}
     {{ super() }}
 {% endblock %}
 
 {% block page_content %}
-    <h1>User List</h1>
-    <ul>
-    {% for user in list %}
-        <li>{{ user.username }} - {{ user.email }} - {{ user.group }}</li>
-    {% endfor %}
-    </ul>
+    {% include 'include/sidebar.html' %}
+
+    <main role="main" class="container">
+        <h1>{{ greeting }}</h1>
+        <!-- Add more content as needed -->
+    </main><!-- /.container -->
 {% endblock %}
 
 {% block scripts %}

@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordRequestForm
+#from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordRequestForm
 
 # load datasets
 from app.library.helpers import *
@@ -10,7 +10,7 @@ from app.routers import twoforms, unsplash, accordion
 from app.logic.load_dataset import LoadDataframeFromExcell
 from app.logic.report import ReportGenerator, ReportRequest
 
-
+import pdfkit
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -19,7 +19,7 @@ from typing import List, Optional
 import pandas as pd
 
 
-app = FastAPI()
+app = FastAPI(debug=True) 
 
 
 templates = Jinja2Templates(directory="templates")
@@ -66,23 +66,9 @@ async def show_page(request: Request):
 
 
 
-# não users, mas perfil de cada pessoa que tem acesso? se está on ou não
-user_db = {
-    'Filipa':{'username':'Filipa Lebre', 'email':'fl@inl.int', 'group':'nanosafety'},
-    'Andreia':{'username':'Andreia Carvalho', 'email':'ac@inl.int', 'group':'nanosafety'},
-    'Vania':{'username':'Vania Vilas-Boas', 'email':'vb@inl.int', 'group':'nanosafety'}
-}
-
-@app.get('/users', response_class=HTMLResponse)
-def get_user(request: Request):
-    user_list = list(user_db.values())
-    data = openfile("users.md")
-    return templates.TemplateResponse("users.html", {"request": request, "data": data, "list": user_list})
-
-
-# Report
+# Route for handling the report form
 @app.route('/report', methods=['GET', 'POST'])
-def get_report(request: Request):
+def report_handler(request: Request):
     data = openfile("report.md")
     if request.method == 'GET':
         return templates.TemplateResponse("report_form.html", {"request": request})
@@ -90,8 +76,23 @@ def get_report(request: Request):
         report_data = ReportRequest(**request.form)
         purpose = report_data.report_title
         findings = report_data.report_description
+        question1 = report_data.question1
+        question2 = report_data.question2
+
         report_generator = ReportGenerator()
-        report = report_generator.ask_question(purpose, findings)
+        report = report_generator.ask_question(purpose, findings, question1, question2)
+
         return templates.TemplateResponse("report_form.html", {"request": request, "report": report, "data": data})
+    
+
+
+
+@app.get('/users', response_class=HTMLResponse)
+def get_user(request: Request):
+    return templates.TemplateResponse("users.html", {"request": request, "greeting": "Hi"})
+
+
+
+
 
 
