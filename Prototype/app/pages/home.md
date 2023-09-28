@@ -1,3 +1,6 @@
+<!-- home.md -->
+
+
 <p>
 <div>
 <script>
@@ -15,9 +18,9 @@ This tool aims to facilitate communication among scientists and enhance the visu
 
 
 
-<!-- home.md -->
 
-## Upload File
+
+<!-- ## Upload File
 
 <div id="drop-area">
   <form class="file-form">
@@ -52,4 +55,4 @@ This tool aims to facilitate communication among scientists and enhance the visu
         console.error(error);
       });
     }
-  </script>
+  </script> -->

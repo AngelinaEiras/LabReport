@@ -5,7 +5,7 @@ import pandas as pd
 @dataclasses.dataclass()
 class LoadDataframeFromExcell:
     excell_path : str
-    sheet_name: str = "Sheet1"
+    sheet_name: str
 
     def load_subdatasets(self) -> pd.DataFrame:
         wb = openpyxl.load_workbook(self.excell_path)
