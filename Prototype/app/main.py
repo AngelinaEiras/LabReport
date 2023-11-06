@@ -21,10 +21,7 @@ from typing import List, Optional
 import pandas as pd
 
 
-
-
 app = FastAPI(debug=True) 
-
 
 # Configure CORS
 app.add_middleware(
@@ -34,10 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 templates = Jinja2Templates(directory="templates")
 
-
+uploads_dir = "uploads"
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -46,41 +42,40 @@ app.include_router(twoforms.router)
 app.include_router(accordion.router)
 
 
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     data = openfile("home.md")
     return templates.TemplateResponse("page.html", {"request": request, "data": data})
 
 
-load_data_loader = LoadDataframeFromExcell(excell_path="/path/to/excel/file.xlsx", sheet_name="Sheet1")  # Create an instance
+# load_data_loader = LoadDataframeFromExcell(excell_path="/path/to/excel/file.xlsx", sheet_name="Sheet1")  # Create an instance 
+#acho q isto nao faz um caralho...
 
-@app.post("/")
-# async def upload_and_process_excel(file: UploadFile):
-#     try:
-#         # Check if the uploaded file has an Excel extension (you can add more extensions if needed)
-#         if file.filename.endswith((".xlsx", ".xls")):
-#             # Load and process the Excel file using LoadDataframeFromExcell
-#             df = load_data_loader.load_subdatasets()
 
-#             # You can perform further operations with the DataFrame (df) here
+# @app.post("/")
+# async def upload_file(file: UploadFile):
+#     # Validate file type
+#     if not validate_file_type(file.filename):
+#         return {"error": "Invalid file type"}
 
-#             return {"message": "Excel file uploaded and processed successfully"}
-#         else:
-#             return {"error": "Invalid file format. Only Excel files (.xlsx, .xls) are allowed."}
-#     except Exception as e:
-#         return {"error": str(e)}
-async def upload_file(file: UploadFile):
-    # Validate file type
-    if not validate_file_type(file.filename):
-        return {"error": "Invalid file type"}
+#     # Generate a unique file name
+#     unique_filename = generate_unique_filename(file.filename)
 
-    # Generate a unique file name
-    unique_filename = generate_unique_filename(file.filename)
+#     # Save the file to a designated location
+#     save_file(file, unique_filename)
 
-    # Save the file to a designated location
-    save_file(file, unique_filename)
+#     return {"message": "File uploaded successfully"}
 
-    return {"message": "File uploaded successfully"}
+@app.post("/", response_class=HTMLResponse)
+async def upload_file(request: Request, file: UploadFile):
+    file_path = os.path.join(uploads_dir, file.filename)
+    file_size = 0
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+        file_size = len(content)
+    return templates.TemplateResponse("congratulations.html", {"request": request, "file_size": file_size})
 
 
 @app.get("/page/{page_name}", response_class=HTMLResponse)
@@ -94,19 +89,6 @@ async def show_page(request: Request):
     df = LoadDataframeFromExcell("/home/angelina/Desktop/LabReport/src/file_manager/tests/artifacts/20230301_PB_triton_2.xlsx", "Sheet1").load_subdatasets()
     data = openfile("table_show.md")
     return templates.TemplateResponse("table_page.html", {"request": request, "data": data, "dataframe": df})
-
-
-# @app.post("/table/show", response_class=HTMLResponse)
-# async def process_files(files: List[UploadFile] = File(...)):
-#     # Process the uploaded files using the LoadDataframeFromExcell function
-#     results = []
-#     for file in files:
-#         df = LoadDataframeFromExcell(file)
-#         data = openfile("table_show.md")
-#         # Perform any desired operations with the DataFrame
-#         results.append(df.to_dict())
-
-#     return {"results": results}
 
 
 
@@ -130,7 +112,6 @@ def report_handler(request: Request):
     
 
 
-
 @app.get('/users', response_class=HTMLResponse)
 def get_user(request: Request):
     return templates.TemplateResponse("users.html", {"request": request, "greeting": "Hi"})
@@ -139,4 +120,41 @@ def get_user(request: Request):
 
 
 # to start: cd LabReport/Prototype, then uvicorn app.main:app --host=0.0.0.0 --port=${PORT:-5000}
+
+
+
+# motivação da tese: fazer isto para isto 
+# esta aplicação é um artefacto que tem o potencial de otimizar a criação de relatórios
+# estudar quais os processos que existem atualmente - como é que as pessoas trabalham, quanto tempo demoram, taxa de erros 
+#   - coisas as coisas que demoram mais e mais propícias a erros - estudo de base científica 
+# após esta análise, o que pode ser potencialmente otimizado - estematico e pode ser apressado, ou o tempo diverge mas a taxa de erros pode ser significativa 
+#   - ganhos: temporal (coisas mais depressa) ou fiabilidade (menos erros nos processo) 
+# fazer a aplicação: definir o que está lá incluído
+# fazer análise com e sem (à mão) a aplicação. comparar métricas e fazer conclusao - melhor ou pior com a app
+
+
+# a app gera relatórios de forma standard. necessidade de análise da qualidade dos dados e facilidade na partilha de conhecimento
+# refazer a motivação -> existe esta dificuldade, e este problema, vamos fazer com intenção de resolver esta questão
+
+
+
+# cap1 - .1 contexto - estabelecer o que se passa, 
+#      - .2 motivaçao - nota-se o problema, 
+#      - .3 objetivos - definir coisas a antigir durante a tese, 
+#      - .4 a estrutua -> 3 dias
+# cap2 - estado da arte: como o pessoal faz o processo, que dificuldades aparecem, e como diferentes pessoas tentam resolvê-los (papers, estrategias, analises e pros e contras - completamente em aberto) -> 1 mes
+# cap3 - requisitos  - quais as coisas q o meu sistema deve ter e permite fazer, funcionalidades - requisitos não funcionais são o modo como os requisitos funcionais funcionam -> 2 dias
+#      - e arquitetura
+#      - desenvolvimento - tarefas de programação - colocar prints - 2 semanas
+# cap4 - resultados - feedback por parte das pessoas e escrutinar - é fazível ou não, blablabla
+#      - discussão - o que valeu a pena ou nao, reflexao de cada passo - 2 semanas
+# cap5 - conclusão: 
+#      - .1 lessons learned
+#      - .2 future work
+#      - .3 conclusão conclusão - 1 semana
+# cap6 - anexos - prints de todas as vistas principais
+
+# desenvolvimento da app - 1mes/2meses
+
+
 
