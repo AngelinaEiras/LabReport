@@ -138,23 +138,13 @@ def get_user(request: Request):
 
 
 
-# cap1 - .1 contexto - estabelecer o que se passa, 
-#      - .2 motivaçao - nota-se o problema, 
-#      - .3 objetivos - definir coisas a antigir durante a tese, 
-#      - .4 a estrutua -> 3 dias
-# cap2 - estado da arte: como o pessoal faz o processo, que dificuldades aparecem, e como diferentes pessoas tentam resolvê-los (papers, estrategias, analises e pros e contras - completamente em aberto) -> 1 mes
-# cap3 - requisitos  - quais as coisas q o meu sistema deve ter e permite fazer, funcionalidades - requisitos não funcionais são o modo como os requisitos funcionais funcionam -> 2 dias
-#      - e arquitetura
-#      - desenvolvimento - tarefas de programação - colocar prints - 2 semanas
-# cap4 - resultados - feedback por parte das pessoas e escrutinar - é fazível ou não, blablabla
-#      - discussão - o que valeu a pena ou nao, reflexao de cada passo - 2 semanas
-# cap5 - conclusão: 
-#      - .1 lessons learned
-#      - .2 future work
-#      - .3 conclusão conclusão - 1 semana
-# cap6 - anexos - prints de todas as vistas principais
+# uma coisa que me lembrei, também podiam aparecer umas mensagens dependendo dos valores das métricas, tipo "quoficiente de variação fora dos valores desejáveis" ou algo assim
+# ao dar as métricas mostrar um dataset (tipo print) com os quadrados selecionados para o cálculo destas
 
-# desenvolvimento da app - 1mes/2meses
 
+
+# nmcli connection add type vpn vpn-type openconnect con-name "UMinho VPN2" ifname -- vpn.data "gateway=vpn.uminho.pt, user=pg42861@alunos.uminho.pt, password=peixepalhaco0, group=geral"
+# nmcli connection up "UMinho VPN2"
+# mudar nome da vpn nos dois comandos
 
 
