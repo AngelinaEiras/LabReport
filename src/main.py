@@ -21,3 +21,10 @@ for row in ws.iter_cols():
             print(row, col.col_idx)
 
 #ws.
+
+
+
+
+
+
+# angelina@y540:~/Desktop/LabReport/Prototype$ uvicorn app.main:app --host=0.0.0.0 --port=${PORT:-5000}
