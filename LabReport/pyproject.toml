@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "labreport"
+dependencies = [
+  "streamlit"
+]
+requires-python = ">=3.9"
+authors = [
+  {name = "Angelina Eiras", email = "angelinaeiras@pm.me"}
+]
+maintainers = [
+  {name = "Angelina Eiras", email = "angelinaeiras@pm.me"}
+]
+
+description = "Eletronic Laboratory Notebook"
+readme = "README.rst"
+license = {file = "LICENSE.txt"}
+keywords = ["bioinformatics", "labreport", "notebook"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
