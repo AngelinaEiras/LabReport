@@ -6,3 +6,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+st.text('Fazer:')
+st.text('- selecionar sub datasets nos subdatasets, ')
+st.text('- ver o que colocar em cada página para não estar vazia, ')
+st.text('- como guardar a info maybe, tipo como criar uma experiência e ter as coisas associadas a essa experiência')
+
+
+## to activate - angelina@y540:~/Desktop/tentativas/LabReport$ streamlit run Lab_Report.py 

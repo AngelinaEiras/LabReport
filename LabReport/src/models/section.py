@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
-from models.incubation import Incubation
-from models.well import Well
+from src.models.incubation import Incubation
+from src.models.well import Well
 
 class Section(BaseModel):
     wells: list[Well]
