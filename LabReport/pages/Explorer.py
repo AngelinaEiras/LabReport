@@ -20,3 +20,4 @@ if sst.allow_editing:
     st.data_editor(df, use_container_width=True, disabled=disabled, hide_index=True, column_config={"Edit": st.column_config.LinkColumn()})
 else:
     st.dataframe(df, use_container_width=True)
+
