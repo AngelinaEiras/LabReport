@@ -2,22 +2,37 @@ import streamlit as st
 from streamlit import session_state as sst
 import pandas as pd
 from datetime import datetime
+from src.models.experiment import Experiment
 
-df = pd.DataFrame(
-    [
-        {"ID":1,"Experiment Name": "Test 0 solution", "Created": datetime.now(), "Last Updated": datetime.now(), "Edit": "http://localhost:8502/Editor?id=1", "lock": True},
-    ]
-)
 
-st.sidebar.checkbox("Admin mode", key="admin_mode", value=False, help="Check this to enable admin mode")
+# Specify the path to your Excel file
+uploaded_file = "tests/20230308_PB triton seed 06.03.xlsx"
+st.title("Explorer")
 
-st.checkbox("Allow editing", key="allow_editing", value=sst.admin_mode, help="Check this to allow editing the data. To edit privileged fields, enable Admin mode.")
-if sst.allow_editing:
-    if sst.admin_mode:
-        disabled = {}
-    else:
-        disabled = {}#{'Created': True, 'Last Updated': True}
-    st.data_editor(df, use_container_width=True, disabled=disabled, hide_index=True, column_config={"Edit": st.column_config.LinkColumn()})
-else:
-    st.dataframe(df, use_container_width=True)
+try:
+    # Load and preview the dataset
+    df = pd.read_excel(uploaded_file, header=None)
+    Experiment.create_experiment_from_file(uploaded_file)
+except Exception as e:
+    st.error(f"Error processing file: {e}")
+    
+event = st.dataframe(df, height=500, use_container_width=True, on_select="rerun", selection_mode=["multi-column", "multi-row"], hide_index=False)
+st.session_state.show_preview = st.checkbox("Show preview", value=False)
+if st.session_state.show_preview:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write("### Preview")
+        if event.selection.rows and event.selection.columns:
+            subset = df.iloc[event.selection.rows, [int(x) for x in event.selection.columns]]
+            st.dataframe(subset)
+        elif event.selection.rows:
+            subset = df.iloc[event.selection.rows, :]
+            st.dataframe(subset)
+        elif event.selection.columns:
+            subset = df.iloc[:, [int(x) for x in event.selection.columns]]
+            st.dataframe(subset)
 
+    with c2:
+        st.selectbox(label="Label", options=["Wells","measures"])
+else: 
+    st.selectbox(label="Label", options=["Wells","measures"])

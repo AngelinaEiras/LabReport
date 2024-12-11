@@ -34,7 +34,7 @@ class Experiment(BaseModel):
     @classmethod
     def create_experiment_from_file(cls, filepath: str) -> 'Experiment':
         name = filepath.split("/")[-1].split(".")[0]
-        with open(filepath) as file:
+        with open(filepath, "rb") as file:
             dataframe = read_excel(file)
         return cls(
             name=name,
