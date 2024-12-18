@@ -23,8 +23,4 @@ for row in ws.iter_cols():
 #ws.
 
 
-
-
-
-
 # angelina@y540:~/Desktop/LabReport/Prototype$ uvicorn app.main:app --host=0.0.0.0 --port=${PORT:-5000}

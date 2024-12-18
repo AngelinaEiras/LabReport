@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 from pydantic import BaseModel, Field, field_serializer, field_validator
+import pandas as pd
 from pandas import DataFrame, read_excel, json_normalize
 import streamlit as st
 from src.models.section import Section
@@ -16,6 +17,7 @@ class Experiment(BaseModel):
     filepath: str
     creation_date: str = Field(default_factory=lambda: str(datetime.now()))
     last_modified: str = Field(default_factory=lambda: str(datetime.now()))
+    note: str = Field(default="", description="Optional note for the experiment")  # Add the note field
 
 
     @field_serializer('dataframe')
@@ -31,6 +33,38 @@ class Experiment(BaseModel):
     #         raise ValueError(f"Invalid dataframe: {e}")
 
 
+    def split_into_subdatasets(df):
+        """Split the DataFrame into sub-datasets based on 'A' (start) and 'H' (end) markers."""
+        subdatasets = []
+        start_flag = False
+        subdataset = pd.DataFrame(columns=df.columns)
+
+        for _, row in df.iterrows():
+            first_col_value = str(row[0]).strip()
+
+            if first_col_value.startswith('A'):  # Start of sub-dataset
+                if not subdataset.empty:
+                    subdatasets.append(subdataset)
+                subdataset = pd.DataFrame(columns=df.columns)
+                subdataset = pd.concat([subdataset, row.to_frame().T])
+                start_flag = True
+
+            elif first_col_value.startswith('H'):  # End of sub-dataset
+                subdataset = pd.concat([subdataset, row.to_frame().T])
+                subdatasets.append(subdataset)
+                subdataset = pd.DataFrame(columns=df.columns)
+                start_flag = False
+
+            elif start_flag:  # Within a sub-dataset
+                subdataset = pd.concat([subdataset, row.to_frame().T])
+
+        # Add any leftover subdataset
+        if not subdataset.empty:
+            subdatasets.append(subdataset)
+
+        return subdatasets
+
+
     @classmethod
     def create_experiment_from_file(cls, filepath: str) -> 'Experiment':
         name = filepath.split("/")[-1].split(".")[0]
@@ -40,8 +74,11 @@ class Experiment(BaseModel):
             name=name,
             dataframe=dataframe, 
             sections={}, 
-            filepath=f"experiments/{name}.json",)
+            filepath=f"experiments/{name}.json",
+            note = "",  # Initialize with an empty string
+            )
     
+
     @classmethod
     def create_experiment_from_bytes(cls, bytes: bytes, name: str) -> 'Experiment':
         dataframe = read_excel(bytes)
@@ -49,20 +86,32 @@ class Experiment(BaseModel):
             name=name,
             dataframe=dataframe, 
             sections={}, 
-            filepath=f"experiments/{name}.json",)
+            filepath=f"experiments/{name}.json",
+            note = "",  # Initialize with an empty string
+            )
     
+
     def save(self):
         self.last_modified = str(datetime.now())
         with open(self.filepath, "w") as file:
             json.dump(self.model_dump(), file)
 
+
+
     @classmethod
     def load(cls, filepath: str) -> 'Experiment':
         with open(filepath, "r") as file:
             data = json.load(file)
+            
+            # Deserialize the dataframe
             json_data = json.loads(data["dataframe"])
-            data["dataframe"] = DataFrame(data=json_data['data'])#, columns=json_data['columns'])
+            data["dataframe"] = DataFrame(data=json_data['data'])
+            
+            # Default the note field if missing
+            data.setdefault("note", "")
+            
             return Experiment.model_validate(data)
+
 
     def rename(self, name: str):
         if name in os.listdir("experiments"):
@@ -75,7 +124,3 @@ class Experiment(BaseModel):
         os.remove(self.dataframe_path)
         os.remove(self.metadata_path)
 
-
-
-        
-    
