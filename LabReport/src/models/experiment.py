@@ -92,10 +92,11 @@ class Experiment(BaseModel):
     
 
     def save(self):
+        """Saves the experiment, including its updated note."""
         self.last_modified = str(datetime.now())
         with open(self.filepath, "w") as file:
+            # Serialize the model including the updated note
             json.dump(self.model_dump(), file)
-
 
 
     @classmethod
