@@ -1,7 +1,46 @@
 import streamlit as st
 from fpdf import FPDF
 import pandas as pd
-from pages.Editor import event
+# from pages.Editor import event
+
+
+#########################
+
+st.title("Experiment Report Generator")
+
+# Check if subdatasets are available
+if "subdatasets" in st.session_state and st.session_state.get("subdatasets_ready", False):
+    subdatasets = st.session_state.subdatasets
+
+    st.write(f"### {len(subdatasets)} Sub-datasets Available")
+    
+    # Allow the user to select a sub-dataset
+    selected_index = st.selectbox(
+        "Select a sub-dataset for reporting:",
+        options=range(len(subdatasets)),
+        format_func=lambda x: f"Sub-dataset {x + 1}",
+    )
+
+    selected_subdataset = subdatasets[selected_index]
+
+    # Display the selected subdataset
+    st.write(f"### Sub-dataset {selected_index + 1} Preview")
+    st.dataframe(selected_subdataset)
+
+    # Statistical analysis (optional)
+    st.write("### Statistical Analysis")
+    if st.checkbox("Show statistics for this sub-dataset"):
+        stats = selected_subdataset.describe()
+        st.write(stats)
+
+else:
+    st.error("No subdatasets available. Please finalize subdatasets on the Editor page.")
+
+# eu preciso de ajustar a aparência do relatório e colocar cada coisa no seu sítio
+# rever ainda a session_state para manter alterações nos subdatasets - talvez pegar em cada subs e coverter em tabela?
+# aplicar ainda análises estastísticas e passa-las também para aqui
+#############################3
+
 
 # Function to generate PDF
 class PDF(FPDF):
@@ -54,43 +93,43 @@ other_details = st.text_area("Other Details (Optional):")
 
 # Step 6: Generate Report Button
 if st.button("Generate PDF Report"):
-    if event:
+    # if event:
         # PDF Generation
-        pdf = PDF()
-        pdf.add_page()
+    pdf = PDF()
+    pdf.add_page()
 
-        pdf.chapter_title("Experiment Report Summary")
-        pdf.chapter_body(f"Plate Type: {plate_type}")
-        #pdf.chapter_body(f"Dataset Info: {df.head()}")  # Include dataset preview
-        pdf.chapter_body(f"Time Point: {timepoint}")
-        pdf.chapter_body(f"Experiment Type: {experiment_type if experiment_type != 'Other' else custom_experiment}")
-        pdf.chapter_body(f"Test Item: {test_item}")
-        pdf.chapter_body(f"Test System: {test_system}")
-        pdf.chapter_body(f"Seeding Date: {seeding_date}")
-        pdf.chapter_body(f"Passage: {passage}")
-        pdf.chapter_body(f"Analysis Date: {analysis_date}")
-        pdf.chapter_body(f"Plate Dilution Factor: {plate_dilution_factor}")
-        pdf.chapter_body(f"Question 4 Option: {question_4}")
-        pdf.chapter_body(f"Other Details: {other_details}")
+    pdf.chapter_title("Experiment Report Summary")
+    pdf.chapter_body(f"Plate Type: {plate_type}")
+    # pdf.chapter_body(f"Dataset Info: {df.head()}")  # Include dataset preview
+    pdf.chapter_body(f"Time Point: {timepoint}")
+    pdf.chapter_body(f"Experiment Type: {experiment_type if experiment_type != 'Other' else custom_experiment}")
+    pdf.chapter_body(f"Test Item: {test_item}")
+    pdf.chapter_body(f"Test System: {test_system}")
+    pdf.chapter_body(f"Seeding Date: {seeding_date}")
+    pdf.chapter_body(f"Passage: {passage}")
+    pdf.chapter_body(f"Analysis Date: {analysis_date}")
+    pdf.chapter_body(f"Plate Dilution Factor: {plate_dilution_factor}")
+    pdf.chapter_body(f"Question 4 Option: {question_4}")
+    pdf.chapter_body(f"Other Details: {other_details}")
 
-        # # Additional experimental analysis (for example, mean, standard deviation, and CV)
-        # if df is not None:
-        #     try:
-        #         stats = df.describe().to_string()
-        #         pdf.chapter_title("Statistical Summary")
-        #         pdf.chapter_body(stats)
-        #     except Exception as e:
-        #         st.error(f"Error generating statistics: {e}")
-        
-        # Save to file
-        pdf_output_path = "/tmp/experiment_report.pdf"  # Adjust path as needed
-        pdf.output(pdf_output_path)
+    # # Additional experimental analysis (for example, mean, standard deviation, and CV)
+    # if df is not None:
+    #     try:
+    #         stats = df.describe().to_string()
+    #         pdf.chapter_title("Statistical Summary")
+    #         pdf.chapter_body(stats)
+    #     except Exception as e:
+    #         st.error(f"Error generating statistics: {e}")
 
-        # Display success message and download link
-        st.success("PDF Report Generated Successfully!")
-        st.download_button("Download Report", data=open(pdf_output_path, "rb").read(), file_name="experiment_report.pdf")
-    else:
-        st.error("Please upload a valid Excel file before generating the report.")
+    # Save to file
+    pdf_output_path = "/tmp/experiment_report.pdf"  # Adjust path as needed
+    pdf.output(pdf_output_path)
+
+    # Display success message and download link
+    st.success("PDF Report Generated Successfully!")
+    st.download_button("Download Report", data=open(pdf_output_path, "rb").read(), file_name="experiment_report.pdf")
+else:
+    st.error("Please upload a valid Excel file before generating the report.")
 
 
 
@@ -118,3 +157,4 @@ if st.button("Generate PDF Report"):
 #     PDF Generation: The generated PDF contains all the inputted details and a preview of the dataset along with statistical metrics.
 
 # This setup provides a flexible framework for handling experiments, allowing for detailed reports based on user-defined inputs and datasets. You can customize this further to include specific experimental conditions or data processing steps, as needed.
+
