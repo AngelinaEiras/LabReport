@@ -2,61 +2,61 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import dataclasses
-from src.models.experiment import Experiment
 from st_table_select_cell import st_table_select_cell
-
+from src.models.experiment import Experiment
 
 st.title("Editor - Manage Experiments")
 
-# Check for tracked experiments (this part is from your existing code)
+# File tracker
 TRACKER_FILE = "file_tracker.json"
-if "experiments_list" in st.session_state:
-    experiments_list = st.session_state.experiments_list
-else:
+if "experiments_list" not in st.session_state:
     if os.path.exists(TRACKER_FILE):
         with open(TRACKER_FILE, "r") as file:
             tracker_data = json.load(file)
-        experiments_list = [
+        st.session_state.experiments_list = [
             file_path for file_path, info in tracker_data.items()
             if info.get("is_experiment", False)
         ]
     else:
-        experiments_list = []
+        st.session_state.experiments_list = []
 
-if experiments_list:
-    # Allow the user to select an experiment
+# Initialize session state for groups
+if "cell_groups" not in st.session_state:
+    st.session_state.cell_groups = []  # List of cell groups
+if "current_group" not in st.session_state:
+    st.session_state.current_group = []  # Temporary group being built
+
+if st.session_state.experiments_list:
     selected_experiment = st.selectbox(
         "Select an experiment to edit:",
-        experiments_list,
+        st.session_state.experiments_list,
         format_func=lambda x: os.path.basename(x),
     )
 
     if selected_experiment:
-        # Load the experiment and display the original dataset
+        # Load the experiment
         experiment = Experiment.create_experiment_from_file(selected_experiment)
         df = experiment.dataframe
         st.write("## Original Dataset")
         st.dataframe(df)
 
-        # Split dataset into subdatasets and store them in session state
+        # Split into subdatasets
         if "subdatasets" not in st.session_state:
             st.session_state.subdatasets = Experiment.split_into_subdatasets(df)
 
         if "selected_subdataset_index" not in st.session_state:
-            st.session_state.selected_subdataset_index = 0  # Default to the first subdataset
+            st.session_state.selected_subdataset_index = 0  
 
-        # Display and edit the subdatasets
-        st.write(f"### Found {len(st.session_state.subdatasets)} sub-datasets.")
+        # Select sub-dataset
         selected_index = st.selectbox(
-            "Select a sub-dataset to view/edit:",
-            options=range(len(st.session_state.subdatasets)),
+            "Select a sub-dataset:",
+            range(len(st.session_state.subdatasets)),
             format_func=lambda x: f"Sub-dataset {x + 1}",
             index=st.session_state.selected_subdataset_index,
             key="selected_subdataset_index"
         )
 
-        # Edit the selected sub-dataset
+        # Display selected sub-dataset
         selected_subdataset = st.session_state.subdatasets[selected_index].reset_index(drop=True)
         edited_subdataset = st.data_editor(
             selected_subdataset,
@@ -65,48 +65,72 @@ if experiments_list:
             hide_index=False,
             key=f"editor_{selected_index}"
         )
-        
-        #####################################################################################
-        #####################################################################################
-        #####################################################################################
 
-
-        st.subheader("Example of st_table_select_cell")
-
+        # Cell Selection
+        st.subheader("Select Cells to Create Groups")
         selectedCell = st_table_select_cell(edited_subdataset)
-        st.write(selectedCell)
 
+        # Add selected cell to current group
         if selectedCell:
             rowId = selectedCell['rowId']
             colIndex = selectedCell['colIndex']
-            st.info('cell "{}" selected at row {} and col {} ({})'.format(
-                edited_subdataset.iat[int(rowId), colIndex], rowId, colIndex, edited_subdataset.columns[colIndex]))
-        else:
-            st.warning('no select') 
-        
-        # FALTA VER COMO FAZER CONJUNTOS MAS JÁ CONSIGO SELECIONAR
+            cell_value = edited_subdataset.iat[int(rowId), colIndex]
+            cell_info = {
+                "row": int(rowId),
+                "column": int(colIndex),
+                "value": cell_value,
+                "column_name": edited_subdataset.columns[colIndex],
+            }
+            
+            if cell_info not in st.session_state.current_group:
+                st.session_state.current_group.append(cell_info)
+                st.success(f"Cell {cell_info} added to the current group!")
 
-        ###################################################
-        ###################################################
-        ###################################################
-        # as porras seguintes ainda não estão a funcionar #
+        # Show current group
+        if st.session_state.current_group:
+            st.write("### Current Group (Not Saved Yet)")
+            st.table(pd.DataFrame(st.session_state.current_group))
 
-        # Save changes to the subdataset
-        if st.button("Save Changes to Sub-dataset"):
-            st.session_state.subdatasets[selected_index] = edited_subdataset
-            st.success(f"Changes saved to Sub-dataset {selected_index + 1}.")
+            # Save the current group
+            if st.button("Save Current Group"):
+                st.session_state.cell_groups.append(st.session_state.current_group.copy())
+                st.session_state.current_group = []
+                st.success("Group saved successfully!")
 
-        # Confirm that the subdatasets are ready for the Reports page
-        if st.button("Finalize Subdatasets for Reports"):
-            st.session_state.subdatasets_ready = True
-            st.success("Subdatasets are now ready for the Reports page!")
+            # Clear current group
+            if st.button("Clear Current Group"):
+                st.session_state.current_group = []
+                st.warning("Current group cleared.")
+
+        # Display & Manage Saved Groups
+        if st.session_state.cell_groups:
+            st.subheader("Saved Groups")
+            for i, group in enumerate(st.session_state.cell_groups):
+                with st.expander(f"Group {i + 1} (Click to Expand)"):
+                    st.table(pd.DataFrame(group))
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button(f"Edit Group {i + 1}", key=f"edit_group_{i}"):
+                            st.session_state.current_group = group.copy()
+                            st.session_state.cell_groups.pop(i)
+                            st.info(f"Editing Group {i + 1}. Modify and save again.")
+
+                    with col2:
+                        if st.button(f"Delete Group {i + 1}", key=f"delete_group_{i}"):
+                            st.session_state.cell_groups.pop(i)
+                            st.warning(f"Deleted Group {i + 1}")
+
+        # Finalize groups
+        if st.session_state.cell_groups and st.button("Finalize Groups"):
+            st.session_state.groups_finalized = True
+            st.success("Groups have been finalized!")
+            st.json(st.session_state.cell_groups)
+
 else:
     st.write("No experiments are currently available.")
 
-
-
-
-
+# melhorar a forma de lidar com os grupos criados e permitir dar nomes, e aplicar as análises estatísticas
 
 # rever ainda a session_state para manter alterações nos subdatasets - talvez pegar em cada subs e coverter em tabela?
 # aplicar ainda análises estastísticas e passa-las também para aqui
