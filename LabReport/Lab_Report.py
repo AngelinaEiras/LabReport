@@ -6,8 +6,8 @@ import os
 import json
 import subprocess
 import time
+from src.models.experiment import Experiment  # Import Experiment class
 # from streamlit import session_state as _state
-# from src.models.experiment import Experiment  # Import Experiment class
 
 # Streamlit App Configuration
 st.set_page_config(
@@ -59,17 +59,24 @@ def force_refresh():
     raise st.script_runner.RerunException(st.script_request_queue.RerunData(None))
 
 
-# # Function to process experiment files
-# def process_experiment(file):
-#     try:
-#         new_experiment = Experiment.create_experiment_from_bytes(
-#             file.getvalue(),
-#             ".".join(file.name.rsplit(".", 1)[:-1])  # Extract the file name without extension
-#         )
-#         new_experiment.save()  # Save the experiment to the experiments folder
-#         return True, None
-#     except Exception as e:
-#         return False, str(e)
+def is_experiment(file_path):
+    """Check if the file is a valid PB experiment."""
+    if file_path.endswith(".xlsx"):
+        try:
+            experiment = Experiment.create_experiment_from_file(file_path)
+            df = experiment.dataframe
+
+            # Ensure the first column contains PB markers (e.g., 'A' and 'H')
+            if not df.empty and df.iloc[:, 0].astype(str).str.startswith(("A", "H")).any():
+                return True
+            else:
+                return False  # Not a PB experiment
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
+            return False  # Not a valid PB experiment
+    else:
+        return False  # Not an Excel file
+
 
 
 # File Picker Button
@@ -83,7 +90,7 @@ if st.button("Select File"):
             file_data[file_path] = {
                 "metadata": metadata,
                 "note": "",
-                "is_experiment": file_path.endswith(".xlsx"),
+                "is_experiment": is_experiment (file_path),
             }
             save_tracker()
             st.sidebar.success(f"File added: {file_path}")
@@ -97,66 +104,80 @@ if file_data:
     st.write("### Tracked Files")
 
     # Prepare table headers
-    cols = st.columns([2, 1, 1, 1, 2, 1, 1, 1])  # Adjust column widths
+    cols = st.columns([2, 1, 2, 2, 3])  # Adjusted column widths
     cols[0].write("**File Path**")
     cols[1].write("**Size (KB)**")
-    cols[2].write("**Last Modified**")
-    cols[3].write("**Created**")
-    cols[4].write("**Notes**")
-    cols[5].write("**Open**")
-    cols[6].write("**Delete**")
-    cols[7].write("**Send to Editor**")
+    cols[2].write("**Timestamps**")  # Merged "Created" & "Last Modified"
+    cols[3].write("**Notes**")
+    cols[4].write("**Actions**")  # Expander for actions
 
     # Display each file's information
     for file_path, info in list(file_data.items()):
         metadata = info["metadata"]
         note_key = f"note_{file_path}"
 
-        cols = st.columns([2, 1, 1, 1, 2, 1, 1, 1])  # Adjust column widths
-        cols[0].write(file_path) # cols[0].write(f"This file can be find at {file_path}") # Display file path
-        cols[1].write(f"{metadata['size_kb']:.2f} KB")  # Display file size
-        cols[2].write(metadata["last_modified"])  # Display last modified date
-        cols[3].write(metadata["created"])  # Display creation date
+        cols = st.columns([2, 1, 2, 2, 3])  # Keep the same structure
 
-        # Editable note field
-        info["note"] = cols[4].text_area(
-            "",
+        # File Path (Truncated for readability)
+        display_path = file_path if len(file_path) < 50 else f"...{file_path[-50:]}"
+        cols[0].write(f"📄 **{display_path}**")
+
+        # File Size
+        cols[1].write(f"{metadata['size_kb']:.2f} KB")
+
+        # Created & Last Modified (Stacked)
+        cols[2].write(f"🕒 **Created:** {metadata['created']}")
+        cols[2].write(f"🛠 **Modified:** {metadata['last_modified']}")
+
+        # Editable Note Field
+        info["note"] = cols[3].text_area(
+            "Add notes here",  # Provide a label for accessibility
             value=info["note"],
             key=note_key,
             label_visibility="collapsed",
         )
 
-        # Open file button
-        if cols[5].button("Open", key=f"open_{file_path}"):
-            if os.name == "nt":  # Windows
-                os.startfile(file_path)
-            elif os.name == "posix":  # macOS/Linux
-                subprocess.run(["xdg-open", file_path])
+        # Actions (inside an expandable section)
+        with cols[4].expander("⚡ Actions", expanded=False):
+            action_cols = st.columns(4)  # 4 buttons per row
 
-        # Delete file button
-        # if cols[6].button("Delete", key=f"delete_{file_path}"):
-        #     del file_data[file_path]
-        #     save_tracker()
-        #     st.experimental_rerun()
-        if cols[6].button("Delete", key=f"delete_{file_path}"):
-            try:
-                del file_data[file_path]  # Remove file entry
-                save_tracker()  # Save updated tracker
-                force_refresh()  # Refresh the app
-            except Exception as e:
-                st.error(f"Failed to delete file entry: {e}")
+            if action_cols[0].button("📂 Open", key=f"open_{file_path}"):
+                if os.name == "nt":
+                    os.startfile(file_path)
+                elif os.name == "posix":
+                    subprocess.run(["xdg-open", file_path])
 
-        # Send Excel file to Editor
-        if info["is_experiment"] and cols[7].button("Send to Editor", key=f"editor_{file_path}"):
-            st.success(f"Sent {file_path} to Editor.")
+            if action_cols[1].button("❌ Delete", key=f"delete_{file_path}"):
+                try:
+                    del file_data[file_path]
+                    save_tracker()
+                    force_refresh()
+                except Exception as e:
+                    st.error(f"Failed to delete file entry: {e}")
+
+            if info["is_experiment"] and action_cols[2].button("🧪 Send to Editor", key=f"editor_{file_path}"):
+                st.success(f"Sent {file_path} to Editor.")
+
+            if action_cols[3].button("📁 Show in Folder", key=f"show_folder_{file_path}"):
+                folder_path = os.path.dirname(file_path)
+                try:
+                    if os.name == "nt":  # Windows
+                        subprocess.run(["explorer", "/select,", file_path], check=True)
+                    elif os.uname().sysname == "Darwin":  # macOS
+                        subprocess.run(["open", "-R", file_path], check=True)
+                    else:  # Linux
+                        subprocess.run(["xdg-open", folder_path], check=True)  # Open folder instead
+                except Exception as e:
+                    st.error(f"Failed to open folder: {e}")
+
 else:
     st.write("No files tracked yet. Use the file picker to add files.")
 
 
-# # Display file sent to the Editor
-# if "editor_file_path" in _state:
-#     st.write("### Files Sent to Editor")
-#     st.write(_state["editor_file_path"])
-
-
 ## to activate - angelina@y540:~/Desktop/tentativas/LabReport$ streamlit run Lab_Report.py 
+
+## button to show in folder
+
+
+
+# Prepare table headers

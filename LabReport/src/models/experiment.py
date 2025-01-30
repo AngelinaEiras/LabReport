@@ -33,6 +33,7 @@ class Experiment(BaseModel):
     #         raise ValueError(f"Invalid dataframe: {e}")
 
 
+    @staticmethod
     def split_into_subdatasets(df):
         """Split the DataFrame into sub-datasets based on 'A' (start) and 'H' (end) markers."""
         subdatasets = []
