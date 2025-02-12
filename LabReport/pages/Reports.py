@@ -6,40 +6,7 @@ import datetime # Generate the report filename dynamically
 
 
 #########################
-
-st.title("Experiment Report Generator")
-
-# Check if subdatasets are available
-if "subdatasets" in st.session_state and st.session_state.get("subdatasets_ready", False):
-    subdatasets = st.session_state.subdatasets
-
-    st.write(f"### {len(subdatasets)} Sub-datasets Available")
-    
-    # Allow the user to select a sub-dataset
-    selected_index = st.selectbox(
-        "Select a sub-dataset for reporting:",
-        options=range(len(subdatasets)),
-        format_func=lambda x: f"Sub-dataset {x + 1}",
-    )
-
-    selected_subdataset = subdatasets[selected_index]
-
-    # Display the selected subdataset
-    st.write(f"### Sub-dataset {selected_index + 1} Preview")
-    st.dataframe(selected_subdataset)
-
-    # Statistical analysis (optional)
-    st.write("### Statistical Analysis")
-    if st.checkbox("Show statistics for this sub-dataset"):
-        stats = selected_subdataset.describe()
-        st.write(stats)
-
-else:
-    st.error("No subdatasets available. Please finalize subdatasets on the Editor page.")
-
-
-
-# Function to generate PDF - justar a aparência do relatório e colocar cada coisa no seu sítio
+# Function to generate PDF - ajustar a aparência do relatório e colocar cada coisa no seu sítio
 
 class PDF(FPDF):
     def header(self):
@@ -77,10 +44,43 @@ class PDF(FPDF):
 ############################################################
 
 
-# Streamlit UI
+# Streamlit UI 
 
 # Page Header
 st.title("Experiment Report Generator")
+
+
+# Adding dataset preview if available
+# Load subdatasets
+if "subdatasets" in st.session_state and st.session_state.subdatasets:
+    st.write("### Sub-datasets")
+    selected_index = st.selectbox(
+        "Select a sub-dataset:",
+        options=range(len(st.session_state.subdatasets)),
+        format_func=lambda x: f"Sub-dataset {x + 1}",
+    )
+    st.dataframe(st.session_state.subdatasets[selected_index])
+
+# Load saved groups
+if "cell_groups" in st.session_state and st.session_state.cell_groups:
+    st.write("### Selected Groups")
+
+    for group in st.session_state.cell_groups:
+        with st.expander(f"Group: {group['name']}"):
+            st.table(pd.DataFrame(group["cells"]))
+
+# Load statistical analysis
+if "stats_analysis" in st.session_state and st.session_state.stats_analysis:
+    st.write("### Statistical Analysis of Groups")
+
+    for group_name, stats in st.session_state.stats_analysis.items():
+        st.subheader(f"Statistics for Group: {group_name}")
+        if "Error" in stats:
+            st.warning(stats["Error"])
+        else:
+            st.table(pd.DataFrame(stats, index=["Value"]))
+
+
 
 
 # Step 2: Select Plate Type (24, 48, or 96 wells)
@@ -133,20 +133,6 @@ if st.button("Generate PDF Report"):
     pdf.add_section("Question 4 Option", question_4)
     pdf.add_section("Other Details", other_details)
 
-    # # Additional experimental analysis (for example, mean, standard deviation, and CV)
-    # if df is not None:
-    #     try:
-    #         stats = df.describe().to_string()
-    #         pdf.chapter_title("Statistical Summary")
-    #         pdf.chapter_body(stats)
-    #     except Exception as e:
-    #         st.error(f"Error generating statistics: {e}")
-
-    # Example: Adding dataset preview if available
-    if "subdatasets" in st.session_state:
-        pdf.add_section("Sub-datasets Summary", f"{len(st.session_state.subdatasets)} sub-datasets available.")
-        for i, subdataset in enumerate(st.session_state.subdatasets):
-            pdf.add_section(f"Sub-dataset {i+1} (Preview)", subdataset.head(3).to_string())
 
     # Save the report to a dynamic filename
     file_name_parts = [

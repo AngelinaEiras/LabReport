@@ -22,9 +22,11 @@ if "experiments_list" not in st.session_state:
 
 # Initialize session state for groups
 if "cell_groups" not in st.session_state:
-    st.session_state.cell_groups = []  # List of cell groups
+    st.session_state.cell_groups = []  # List of named cell groups
 if "current_group" not in st.session_state:
     st.session_state.current_group = []  # Temporary group being built
+if "group_name" not in st.session_state:
+    st.session_state.group_name = ""  # Temporary name input
 
 if st.session_state.experiments_list:
     selected_experiment = st.selectbox(
@@ -63,7 +65,7 @@ if st.session_state.experiments_list:
             height=320,
             use_container_width=True,
             hide_index=False,
-            key=f"editor_{selected_index}"
+            key=f"editor_{selected_index}",
         )
 
         # Cell Selection
@@ -76,10 +78,9 @@ if st.session_state.experiments_list:
             colIndex = selectedCell['colIndex']
             cell_value = edited_subdataset.iat[int(rowId), colIndex]
             cell_info = {
+                "value": cell_value,
                 "row": int(rowId),
                 "column": int(colIndex),
-                "value": cell_value,
-                "column_name": edited_subdataset.columns[colIndex],
             }
             
             if cell_info not in st.session_state.current_group:
@@ -91,35 +92,89 @@ if st.session_state.experiments_list:
             st.write("### Current Group (Not Saved Yet)")
             st.table(pd.DataFrame(st.session_state.current_group))
 
+            # Input for group name
+            st.session_state.group_name = st.text_input("Enter Group Name:", value=st.session_state.group_name)
+
             # Save the current group
             if st.button("Save Current Group"):
-                st.session_state.cell_groups.append(st.session_state.current_group.copy())
-                st.session_state.current_group = []
-                st.success("Group saved successfully!")
+                if st.session_state.group_name.strip():
+                    st.session_state.cell_groups.append({
+                        "name": st.session_state.group_name,
+                        "cells": st.session_state.current_group.copy(),
+                    })
+                    st.session_state.current_group = []
+                    st.session_state.group_name = ""
+                    st.success("Group saved successfully!")
+                else:
+                    st.warning("Please enter a name for the group before saving.")
 
             # Clear current group
             if st.button("Clear Current Group"):
                 st.session_state.current_group = []
+                st.session_state.group_name = ""
                 st.warning("Current group cleared.")
 
-        # Display & Manage Saved Groups
+        # Display & Analyze Saved Groups
         if st.session_state.cell_groups:
-            st.subheader("Saved Groups")
+            st.subheader("Saved Groups & Statistical Analysis")
+
             for i, group in enumerate(st.session_state.cell_groups):
-                with st.expander(f"Group {i + 1} (Click to Expand)"):
-                    st.table(pd.DataFrame(group))
+                with st.expander(f"{group['name']} (Click to Expand)"):
+                    group_df = pd.DataFrame(group["cells"])
+                    st.table(group_df)
 
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button(f"Edit Group {i + 1}", key=f"edit_group_{i}"):
-                            st.session_state.current_group = group.copy()
-                            st.session_state.cell_groups.pop(i)
-                            st.info(f"Editing Group {i + 1}. Modify and save again.")
+                    # Perform statistical analysis on numerical values
+                    try:
+                        numeric_values = pd.to_numeric(group_df["value"], errors="coerce").dropna()
+                        if not numeric_values.empty:
+                            stats = {
+                                "Mean": numeric_values.mean(),
+                                "Standard Deviation": numeric_values.std(),
+                                "Coefficient of Variation": (numeric_values.std() / numeric_values.mean()),
+                                "Min": numeric_values.min(),
+                                "Max": numeric_values.max(),
+                            }
+                            st.write("### Statistical Analysis")
+                            st.table(pd.DataFrame(stats, index=["Value"]))
+                        else:
+                            st.warning("No numerical values found in this group.")
+                    except Exception as e:
+                        st.error(f"Error in statistical analysis: {e}")
 
-                    with col2:
-                        if st.button(f"Delete Group {i + 1}", key=f"delete_group_{i}"):
-                            st.session_state.cell_groups.pop(i)
-                            st.warning(f"Deleted Group {i + 1}")
+
+
+
+
+            # Store subdatasets in session state
+            st.session_state.subdatasets = st.session_state.get("subdatasets", [])
+
+            # Store selected groups in session state
+            st.session_state.cell_groups = st.session_state.get("cell_groups", [])
+
+            # Store statistical analysis results in session state
+            st.session_state.stats_analysis = {}
+
+            for group in st.session_state.cell_groups:
+                try:
+                    group_df = pd.DataFrame(group["cells"])
+                    numeric_values = pd.to_numeric(group_df["value"], errors="coerce").dropna()
+
+                    if not numeric_values.empty:
+                        stats = {
+                            "Mean": numeric_values.mean(),
+                            "Standard Deviation": numeric_values.std(),
+                            "Coefficient of Variation": (numeric_values.std() / numeric_values.mean()),
+                            "Min": numeric_values.min(),
+                            "Max": numeric_values.max(),
+                        }
+                        st.session_state.stats_analysis[group["name"]] = stats
+                except Exception as e:
+                    st.session_state.stats_analysis[group["name"]] = {"Error": str(e)}
+
+            st.success("Data saved to session state for Reports page.")
+
+
+
 
         # Finalize groups
         if st.session_state.cell_groups and st.button("Finalize Groups"):
@@ -127,8 +182,9 @@ if st.session_state.experiments_list:
             st.success("Groups have been finalized!")
             st.json(st.session_state.cell_groups)
 
-else:
     st.write("No experiments are currently available.")
+
+
 
 # melhorar a forma de lidar com os grupos criados e permitir dar nomes, e aplicar as análises estatísticas
 

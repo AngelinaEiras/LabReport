@@ -141,7 +141,7 @@ if file_data:
         with cols[4].expander("⚡ Actions", expanded=False):
             action_cols = st.columns(4)  # 4 buttons per row
 
-            if action_cols[0].button("📂 Open", key=f"open_{file_path}"):
+            if action_cols[0].button("Open file", key=f"open_{file_path}"):
                 if os.name == "nt":
                     os.startfile(file_path)
                 elif os.name == "posix":
@@ -155,7 +155,7 @@ if file_data:
                 except Exception as e:
                     st.error(f"Failed to delete file entry: {e}")
 
-            if info["is_experiment"] and action_cols[2].button("🧪 Send to Editor", key=f"editor_{file_path}"):
+            if info["is_experiment"] and action_cols[2].button("Send to Editor", key=f"editor_{file_path}"):
                 st.success(f"Sent {file_path} to Editor.")
 
             if action_cols[3].button("📁 Show in Folder", key=f"show_folder_{file_path}"):
@@ -174,10 +174,7 @@ else:
     st.write("No files tracked yet. Use the file picker to add files.")
 
 
-## to activate - angelina@y540:~/Desktop/tentativas/LabReport$ streamlit run Lab_Report.py 
-
-## button to show in folder
-
+# to activate - angelina@y540:~/Desktop/tentativas/LabReport$ streamlit run Lab_Report.py 
 
 
 # Prepare table headers
