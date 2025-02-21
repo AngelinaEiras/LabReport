@@ -33,37 +33,83 @@ class Experiment(BaseModel):
     #         raise ValueError(f"Invalid dataframe: {e}")
 
 
+    # @staticmethod
+    # def split_into_subdatasets(df):
+    #     """Split the DataFrame into sub-datasets based on 'A' (start) and 'H' (end) markers."""
+    #     subdatasets = []
+    #     start_flag = False
+    #     subdataset = pd.DataFrame(columns=df.columns)
+
+    #     for _, row in df.iterrows():
+    #         first_col_value = str(row[0]).strip()
+
+    #         if first_col_value.startswith('A'):  # Start of sub-dataset
+    #             if not subdataset.empty:
+    #                 subdatasets.append(subdataset)
+    #             subdataset = pd.DataFrame(columns=df.columns)
+    #             subdataset = pd.concat([subdataset, row.to_frame().T])
+    #             start_flag = True
+
+    #         elif first_col_value.startswith('H'):  # End of sub-dataset
+    #             subdataset = pd.concat([subdataset, row.to_frame().T])
+    #             subdatasets.append(subdataset)
+    #             subdataset = pd.DataFrame(columns=df.columns)
+    #             start_flag = False
+
+    #         elif start_flag:  # Within a sub-dataset
+    #             subdataset = pd.concat([subdataset, row.to_frame().T])
+
+    #     # Add any leftover subdataset
+    #     if not subdataset.empty:
+    #         subdatasets.append(subdataset)
+
+    #     return subdatasets
+
     @staticmethod
-    def split_into_subdatasets(df):
-        """Split the DataFrame into sub-datasets based on 'A' (start) and 'H' (end) markers."""
-        subdatasets = []
+    def split_into_subdatasets(df, plate_type="96 wells"):
+        """Split the DataFrame into sub-datasets based on plate type."""
+        
+        # Define row ranges for different plate types
+        plate_row_ranges = {
+            "12 wells": ["A", "B", "C"],
+            "24 wells": ["A", "B", "C", "D"],
+            "48 wells": ["A", "B", "C", "D", "E", "F"],
+            "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
+        }
+        
+        if plate_type not in plate_row_ranges:
+            raise ValueError(f"Unsupported plate type: {plate_type}")
+
+        valid_rows = plate_row_ranges[plate_type]
         start_flag = False
+        subdatasets = []
         subdataset = pd.DataFrame(columns=df.columns)
 
         for _, row in df.iterrows():
             first_col_value = str(row[0]).strip()
 
-            if first_col_value.startswith('A'):  # Start of sub-dataset
+            if first_col_value.startswith(valid_rows[0]):  # Start of a sub-dataset
                 if not subdataset.empty:
                     subdatasets.append(subdataset)
                 subdataset = pd.DataFrame(columns=df.columns)
                 subdataset = pd.concat([subdataset, row.to_frame().T])
                 start_flag = True
 
-            elif first_col_value.startswith('H'):  # End of sub-dataset
+            elif first_col_value.startswith(valid_rows[-1]):  # End of a sub-dataset
                 subdataset = pd.concat([subdataset, row.to_frame().T])
                 subdatasets.append(subdataset)
                 subdataset = pd.DataFrame(columns=df.columns)
                 start_flag = False
 
-            elif start_flag:  # Within a sub-dataset
+            elif start_flag and first_col_value[0] in valid_rows:  # Rows within a sub-dataset
                 subdataset = pd.concat([subdataset, row.to_frame().T])
 
-        # Add any leftover subdataset
+        # Add the last dataset if it wasn't added
         if not subdataset.empty:
             subdatasets.append(subdataset)
 
         return subdatasets
+
 
 
     @classmethod

@@ -42,9 +42,18 @@ if st.session_state.experiments_list:
         st.write("## Original Dataset")
         st.dataframe(df)
 
-        # Split into subdatasets
+
+        # Add a dropdown to select the plate type
+        plate_type = st.selectbox(
+            "Select the well plate type:",
+            ["96 wells", "48 wells", "24 wells", "12 wells"],
+            index=0  # Default to 96-well
+        )
+
+        # Pass the selected plate type to the function and Split into subdatasets
         if "subdatasets" not in st.session_state:
-            st.session_state.subdatasets = Experiment.split_into_subdatasets(df)
+            st.session_state.subdatasets = Experiment.split_into_subdatasets(df, plate_type=plate_type)
+
 
         if "selected_subdataset_index" not in st.session_state:
             st.session_state.selected_subdataset_index = 0  
@@ -58,34 +67,61 @@ if st.session_state.experiments_list:
             key="selected_subdataset_index"
         )
 
+        # ✅ Assign Row Letters Instead of Numbers
+        def index_to_letter(idx):
+            letters = ""
+            while idx >= 0:
+                letters = chr(65 + (idx % 26)) + letters
+                idx = (idx // 26) - 1
+            return letters
+
+
         # Display selected sub-dataset
         selected_subdataset = st.session_state.subdatasets[selected_index].reset_index(drop=True)
+
+        # Modify column names
+        renamed_columns = {col: f"Col-{i+1}" for i, col in enumerate(selected_subdataset.columns)}
+        selected_subdataset = selected_subdataset.rename(columns=renamed_columns)
+
+        # Column renaming inside an expander
+        with st.expander("🔤 Rename Columns (Click to Expand)"):
+            new_column_names = {}
+            for col in selected_subdataset.columns:
+                new_name = st.text_input(f"Rename {col}:", value=col)
+                new_column_names[col] = new_name
+
+            # Apply new names
+            selected_subdataset = selected_subdataset.rename(columns=new_column_names)
+
+
+        # Display edited dataset
         edited_subdataset = st.data_editor(
             selected_subdataset,
             height=320,
             use_container_width=True,
             hide_index=False,
             key=f"editor_{selected_index}",
-        )
-
+)
         # Cell Selection
         st.subheader("Select Cells to Create Groups")
         selectedCell = st_table_select_cell(edited_subdataset)
 
         # Add selected cell to current group
         if selectedCell:
-            rowId = selectedCell['rowId']
-            colIndex = selectedCell['colIndex']
-            cell_value = edited_subdataset.iat[int(rowId), colIndex]
+            row_number = int(selectedCell['rowId'])  # Keep as integer for compatibility
+            row_letter = index_to_letter(row_number)  # Convert to letter for display
+            col_name = selected_subdataset.columns[selectedCell['colIndex']]
+            cell_value = edited_subdataset.iat[row_number, selectedCell['colIndex']]
+            
             cell_info = {
                 "value": cell_value,
-                "row": int(rowId),
-                "column": int(colIndex),
+                "row": row_letter,  # Show letter instead of number
+                "column": col_name,
             }
-            
+
             if cell_info not in st.session_state.current_group:
                 st.session_state.current_group.append(cell_info)
-                st.success(f"Cell {cell_info} added to the current group!")
+                st.success(f"Cell {row_letter}, {col_name} added to the current group!")
 
         # Show current group
         if st.session_state.current_group:
@@ -142,9 +178,6 @@ if st.session_state.experiments_list:
                         st.error(f"Error in statistical analysis: {e}")
 
 
-
-
-
             # Store subdatasets in session state
             st.session_state.subdatasets = st.session_state.get("subdatasets", [])
 
@@ -174,8 +207,6 @@ if st.session_state.experiments_list:
             st.success("Data saved to session state for Reports page.")
 
 
-
-
         # Finalize groups
         if st.session_state.cell_groups and st.button("Finalize Groups"):
             st.session_state.groups_finalized = True
@@ -185,12 +216,11 @@ if st.session_state.experiments_list:
     st.write("No experiments are currently available.")
 
 
-
 # melhorar a forma de lidar com os grupos criados e permitir dar nomes, e aplicar as análises estatísticas
 
 # rever ainda a session_state para manter alterações nos subdatasets - talvez pegar em cada subs e coverter em tabela?
-# aplicar ainda análises estastísticas e passa-las também para aqui
-#############################
-
 
 # é necessário arranjar forma de fzer grupos personalizáveis, nem que seja convertendo para outro sistema de dados ou forma de apresentação, como tabela, lista, etc. se não der para alterar, então possibilitar a criação de um novo grupo de dados do subdataset, e posterior possivel eliminação. a estes grupos aplicar se ia a possibilidade de se realizar um tratamento estatístico e passar para o relatório
+
+# tentar colucar as letras como os nomes das linhas, insistir em dar nomes às colunas
+

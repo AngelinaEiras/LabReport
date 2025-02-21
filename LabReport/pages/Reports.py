@@ -1,54 +1,12 @@
 import streamlit as st
-from fpdf import FPDF
 import pandas as pd
-import datetime # Generate the report filename dynamically
-# from pages.Editor import event
+import numpy as np
+import os
+from weasyprint import HTML
+import datetime  
 
-
-#########################
-# Function to generate PDF - ajustar a aparência do relatório e colocar cada coisa no seu sítio
-
-class PDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 14)
-        self.set_text_color(30, 30, 30)  # Dark gray
-        self.cell(0, 10, "Experiment Report", 0, 1, "C")
-        self.set_draw_color(200, 200, 200)  # Light gray line
-        self.line(10, 20, 200, 20)  # Horizontal line
-        self.ln(10)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Arial", "I", 10)
-        self.set_text_color(120, 120, 120)  # Medium gray
-        self.cell(0, 10, f"Page {self.page_no()}", 0, 0, "C")
-
-    def chapter_title(self, title):
-        self.set_font("Arial", "B", 12)
-        self.set_text_color(50, 50, 50)  # Darker text for sections
-        self.cell(0, 10, title, 0, 1, "L")
-        self.ln(5)
-
-    def chapter_body(self, body):
-        self.set_font("Arial", "", 12)
-        self.set_text_color(80, 80, 80)
-        self.multi_cell(0, 10, body)
-        self.ln(5)
-
-    def add_section(self, title, content):
-        self.chapter_title(title)
-        self.chapter_body(content)
-
-
-############################################################
-############################################################
-
-
-# Streamlit UI 
-
-# Page Header
+# Streamlit UI
 st.title("Experiment Report Generator")
-
 
 # Adding dataset preview if available
 # Load subdatasets
@@ -81,14 +39,12 @@ if "stats_analysis" in st.session_state and st.session_state.stats_analysis:
             st.table(pd.DataFrame(stats, index=["Value"]))
 
 
-
-
-# Step 2: Select Plate Type (24, 48, or 96 wells)
-plate_type = st.selectbox("Select Plate Type:", ["12 wells", "24 wells", "48 wells", "96 wells"])
-
-
-# Step 3: Experiment details
-st.markdown("### Experiment Details")
+# Page Input Fields
+plate_type = st.selectbox(
+            "Select the well plate type:",
+            ["96 wells", "48 wells", "24 wells", "12 wells"],
+            index=0  # Default to 96-well
+        )
 timepoint = st.text_input("Time Point:")
 experiment_type = st.selectbox("Experiment Type:", ["PrestoBlue", "LDH", "Other"])
 if experiment_type == "Other":
@@ -96,63 +52,122 @@ if experiment_type == "Other":
 
 test_item = st.text_input("Test Item:")
 test_system = st.text_input("Test System:")
-
-
-# Step 4: Additional Experiment Information
-test_item = st.text_input("Test Item (e.g., PrestoBlue, LDH):")
-test_system = st.text_input("Test System (e.g., A549 cells, co-culture):")
 seeding_date = st.date_input("Seeding Date:")
 passage = st.text_input("Passage:")
 analysis_date = st.date_input("Analysis Date:")
 plate_dilution_factor = st.text_input("Plate Dilution Factor (e.g., 1:10)")
 
+# Custom Sections
+st.markdown("### Add Custom Sections to Report")
+if "custom_sections" not in st.session_state:
+    st.session_state.custom_sections = []
 
-# Step 5: Additional Information and Report Options
-st.markdown("### Other Information")
-question_4 = st.radio("Select an Option for Question 4:", ["Option 1", "Option 2", "Option 3"])
-other_details = st.text_area("Other Details (Optional):")
+new_section_title = st.text_input("Section Title:")
+new_section_content = st.text_area("Section Content:")
 
+if st.button("Add Section"):
+    if new_section_title and new_section_content:
+        st.session_state.custom_sections.append({"title": new_section_title, "content": new_section_content})
+        st.success(f"Section '{new_section_title}' added!")
 
-# Step 6: Generate Report Button
+if st.session_state.custom_sections:
+    st.markdown("### Custom Sections")
+    for i, section in enumerate(st.session_state.custom_sections):
+        st.markdown(f"**{i+1}. {section['title']}**")
+        st.text(section["content"])
+        if st.button(f"Remove {section['title']}", key=f"remove_{i}"):
+            del st.session_state.custom_sections[i]
+            st.experimental_rerun()
+
+# Generate Report Button
 if st.button("Generate PDF Report"):
-    # PDF generation
-    pdf = PDF()
-    pdf.add_page()
+    pdf_filepath = "/tmp/report.pdf"
+    
+    # CSS styles for tables and text formatting
+    css = """
+    <style>
+    body { font-family: Arial, sans-serif; font-size: 12pt; }
+    h1 { text-align: center; color: #333; }
+    h2 { color: #555; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
+    table { width: 90%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    </style>
+    """
 
-    # Title and sections
-    pdf.add_section("Experiment Report Summary", "")
-    pdf.add_section("Plate Type", plate_type)
-    pdf.add_section("Time Point", timepoint)
-    pdf.add_section("Experiment Type", experiment_type if experiment_type != "Other" else custom_experiment)
-    pdf.add_section("Test Item", test_item)
-    pdf.add_section("Test System", test_system)
-    pdf.add_section("Seeding Date", str(seeding_date))
-    pdf.add_section("Passage", passage)
-    pdf.add_section("Analysis Date", str(analysis_date))
-    pdf.add_section("Plate Dilution Factor", plate_dilution_factor)
-    pdf.add_section("Question 4 Option", question_4)
-    pdf.add_section("Other Details", other_details)
+    # Build HTML content for the report
+    html_content = f"""
+    <html>
+    <head>
+        <title>Experiment Report</title>
+        {css}
+    </head>
+    <body>
+    """
 
+    html_content2 = f"""
+        <h1>Experiment Report</h1>
+        <h2>Experiment Details</h2>
+        <p><strong>Plate Type:</strong> {plate_type}</p>
+        <p><strong>Time Point:</strong> {timepoint}</p>
+        <p><strong>Experiment Type:</strong> {experiment_type if experiment_type != "Other" else custom_experiment}</p>
+        <p><strong>Test Item:</strong> {test_item}</p>
+        <p><strong>Test System:</strong> {test_system}</p>
+        <p><strong>Seeding Date:</strong> {seeding_date}</p>
+        <p><strong>Passage:</strong> {passage}</p>
+        <p><strong>Analysis Date:</strong> {analysis_date}</p>
+        <p><strong>Plate Dilution Factor:</strong> {plate_dilution_factor}</p>
+    """
 
-    # Save the report to a dynamic filename
-    file_name_parts = [
-        plate_type.replace(" ", "_"),
-        test_item.replace(" ", "_"),
-        analysis_date.strftime("%Y%m%d") if analysis_date else "No_Date",
-    ]
-    file_name = f"{'_'.join(file_name_parts)}_experiment_report.pdf"
-    pdf_output_path = f"/tmp/{file_name}"
-    pdf.output(pdf_output_path)
+    # Include Sub-datasets
+    if "subdatasets" in st.session_state and st.session_state.subdatasets:
+        html_content += "<h2>Sub-datasets</h2>"
+        for i, subdataset in enumerate(st.session_state.subdatasets):
+            html_content += f"<h3>Sub-dataset {i+1}</h3>"
+            html_content += subdataset.head(3).to_html(classes="mystyle", index=False)
+
+    # Include Selected Groups
+    if "cell_groups" in st.session_state and st.session_state.cell_groups:
+        html_content += "<h2>Selected Groups</h2>"
+        for group in st.session_state.cell_groups:
+            html_content += f"<h3>Group: {group['name']}</h3><table>"
+            html_content += "<tr><th>Row</th><th>Column</th><th>Value</th></tr>"
+            for cell in group["cells"]:
+                html_content += f"<tr><td>{cell['row']}</td><td>{cell['column']}</td><td>{cell['value']}</td></tr>"
+            html_content += "</table>"
+
+    # Include Statistical Analysis
+    if "stats_analysis" in st.session_state and st.session_state.stats_analysis:
+        html_content += "<h2>Statistical Analysis of Groups</h2>"
+        for group_name, stats in st.session_state.stats_analysis.items():
+            html_content += f"<h3>Statistics for Group: {group_name}</h3><table>"
+            if "Error" in stats:
+                html_content += f"<tr><td colspan='2'>Error: {stats['Error']}</td></tr>"
+            else:
+                for key, value in stats.items():
+                    html_content += f"<tr><td>{key}</td><td>{value:.2f}</td></tr>"
+            html_content += "</table>"
+
+    html_content += html_content2
+
+    # Add custom sections
+    if st.session_state.custom_sections:
+        html_content += "<h2>Additional Researcher Sections</h2>"
+        for section in st.session_state.custom_sections:
+            html_content += f"<h3>{section['title']}</h3><p>{section['content']}</p>"
+
+    # Close HTML body
+    html_content += "</body></html>"
+
+    # Convert HTML to PDF
+    HTML(string=html_content).write_pdf(pdf_filepath)
 
     # Provide download link
+    file_name = f"{plate_type.replace(' ', '_')}_{test_item.replace(' ', '_')}_{analysis_date.strftime('%Y%m%d') if analysis_date else 'No_Date'}_experiment_report.pdf"
+    
     st.success("PDF Report Generated Successfully!")
-    st.download_button(
-        "Download Report",
-        data=open(pdf_output_path, "rb").read(),
-        file_name=file_name,
-    )
-
-
+    st.download_button("Download Report", data=open(pdf_filepath, "rb").read(), file_name=file_name)
 
 
 # Explanation of Code:
