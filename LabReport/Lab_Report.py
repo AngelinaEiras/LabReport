@@ -59,24 +59,58 @@ def force_refresh():
     raise st.script_runner.RerunException(st.script_request_queue.RerunData(None))
 
 
-def is_experiment(file_path):
-    """Check if the file is a valid PB experiment."""
+# def is_experiment(file_path):
+#     """Check if the file is a valid PB experiment."""
+#     if file_path.endswith(".xlsx"):
+#         try:
+#             experiment = Experiment.create_experiment_from_file(file_path)
+#             df = experiment.dataframe
+
+#             # Ensure the first column contains PB markers (e.g., 'A' and 'H')
+
+#             #########################################################
+#             # isto depende do numero de wells!!!!!!!
+#             #########################################################
+
+
+
+#             if not df.empty and df.iloc[:, 0].astype(str).str.startswith(("A", "H")).any():
+#                 return True
+#             else:
+#                 return False  # Not a PB experiment
+#         except Exception as e:
+#             st.error(f"Error processing file: {e}")
+#             return False  # Not a valid PB experiment
+#     else:
+#         return False  # Not an Excel file
+
+
+def is_experiment(file_path: str) -> bool:
+    """Check if the file is a valid PB experiment by attempting to split into sub-datasets."""
     if file_path.endswith(".xlsx"):
         try:
             experiment = Experiment.create_experiment_from_file(file_path)
             df = experiment.dataframe
 
-            # Ensure the first column contains PB markers (e.g., 'A' and 'H')
-            if not df.empty and df.iloc[:, 0].astype(str).str.startswith(("A", "H")).any():
-                return True
-            else:
-                return False  # Not a PB experiment
+            if df.empty or df.shape[1] < 2:
+                return False  # Not enough data to qualify as an experiment
+
+            # Attempt splitting using each plate type
+            plate_types = ["12 wells", "24 wells", "48 wells", "96 wells"]
+            for plate_type in plate_types:
+                subdatasets = Experiment.split_into_subdatasets(df, plate_type=plate_type)
+                if subdatasets:  # If splitting yields results, it is a valid experiment
+                    st.info(f"Detected plate type: {plate_type}")
+                    return True
+
+            st.warning("File does not match any known plate format.")
+            return False
+
         except Exception as e:
             st.error(f"Error processing file: {e}")
-            return False  # Not a valid PB experiment
-    else:
-        return False  # Not an Excel file
+            return False
 
+    return False
 
 
 # File Picker Button
@@ -136,6 +170,7 @@ if file_data:
             key=note_key,
             label_visibility="collapsed",
         )
+        save_tracker()
 
         # Actions (inside an expandable section)
         with cols[4].expander("⚡ Actions", expanded=False):
@@ -176,5 +211,6 @@ else:
 
 # to activate - angelina@y540:~/Desktop/tentativas/LabReport$ streamlit run Lab_Report.py 
 
-
+# ir buscar última versão funcionável ao git!!!
+# https://www.youtube.com/watch?v=jwZb339bs2c
 # Prepare table headers
