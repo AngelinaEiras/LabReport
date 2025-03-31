@@ -535,7 +535,7 @@ if selected_experiment:
         st.table(group_df)
 
 
-        ############################################
+        ############################################ - ainda a perceber o que isto faz
         group_data_list = selected_experiment["cell_groups"][group]
         # Check if the first element is a list itself
         if group_data_list and isinstance(group_data_list[0], list):
