@@ -1,0 +1,26 @@
+{
+    "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230308_PB triton seed 06.03.xlsx":{
+        "2025-04-10T18:49:30.682453":{
+            "plate_type":"96 wells",
+            "timepoint":"",
+            "experiment_type":"PrestoBlue",
+            "test_item":"",
+            "test_system":"",
+            "seeding_date":"2025-04-10",
+            "passage":"",
+            "analysis_date":"2025-04-10",
+            "plate_dilution_factor":""
+        },
+        "2025-04-10T18:53:12.174832":{
+            "plate_type":"96 wells",
+            "timepoint":"",
+            "experiment_type":"PrestoBlue",
+            "test_item":"",
+            "test_system":"",
+            "seeding_date":"2025-04-10",
+            "passage":"",
+            "analysis_date":"2025-04-10",
+            "plate_dilution_factor":"ue5u"
+        }
+    }
+}

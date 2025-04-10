@@ -11,42 +11,28 @@ REPORT_METADATA_FILE = "report_metadata_tracker.json"  # Report metadata tracker
 
 # === Helper Functions ===
 def load_json_file(path):
-    """Load data from a JSON file."""
     if os.path.exists(path):
-        with open(path, "r") as f:
-            return json.load(f)
+        try:
+            with open(path, "r") as file:
+                return json.load(file)
+        except json.JSONDecodeError:
+            st.error("Editor file tracker is corrupted. Resetting file.")
+            os.remove(path)  # or backup instead of deleting
+            return {}
     return {}
 
-def save_json_file(path, data):
-    """Save data to a JSON file."""
-    with open(path, "w") as f:
-        json.dump(data, f, indent=4, default=str)
 
-def load_editor_data():
-    """Load editor data from JSON file."""
-    return load_json_file(TRACKER_FILE_E)
+def save_json_file():
+    try:
+        with open(REPORT_METADATA_FILE, "w", encoding='utf-8') as file:
+            json.dump(report_data, file, ensure_ascii=False, indent=4, separators=(",", ":"))
+    except TypeError as e:
+        st.error(f"JSON Serialization Error: {e}")
+        st.json(report_data) 
 
-def save_editor_data(editor_data):
-    """Save editor data to JSON file."""
-    save_json_file(TRACKER_FILE_E, editor_data)
-
-def load_report_metadata():
-    """Load report metadata from JSON file."""
-    return load_json_file(REPORT_METADATA_FILE)
-
-def save_report_metadata(metadata_store):
-    """Save report metadata to JSON file."""
-    save_json_file(REPORT_METADATA_FILE, metadata_store)
-
-def select_experiment(editor_data):
-    """Allow the user to select an experiment."""
-    experiment_names = list(editor_data.keys())
-    return st.selectbox("Select an Experiment:", experiment_names)
-
-def select_subdataset(experiment_data):
-    """Allow the user to select a subdataset."""
-    subdataset_count = len([key for key in experiment_data if key.isdigit() and isinstance(experiment_data[key], dict)])
-    return st.selectbox("Select Modified Sub-dataset:", range(subdataset_count), format_func=lambda x: f"Sub-dataset {x + 1}")
+# Load JSON and provide management tools
+editor_data = load_json_file(TRACKER_FILE_E)
+report_data = load_json_file(REPORT_METADATA_FILE)
 
 def show_dataframe(title, data):
     """Display a dataframe in Streamlit."""
@@ -137,30 +123,13 @@ def main():
     # === JSON Management Section ===
     st.markdown("### 🗃️ JSON Editor Manager")
 
-    # Load JSON and provide management tools
-    editor_data = load_editor_data()
-
-    # Add delete functionality for editor data
-    delete_key = st.text_input("Delete Experiment Key by Timestamp:")
-    if st.button("Delete Entry"):
-        if delete_key in editor_data:
-            del editor_data[delete_key]
-            save_editor_data(editor_data)
-            st.success(f"Deleted '{delete_key}' from tracker.")
-        else:
-            st.warning("Key not found.")
-
-    # Display Raw Editor Data
-    st.expander("📝 View Raw Editor Data").markdown("#### View JSON Data")
-    st.json(editor_data)
-
     # === Experiment Selection ===
-    selected_experiment = select_experiment(editor_data)
+    selected_experiment = st.selectbox("Select an Experiment:", list(editor_data.keys()))
     if not selected_experiment: st.stop()
 
     # Get experiment data
     experiment_data = editor_data[selected_experiment]
-    subdataset_index = select_subdataset(experiment_data)
+    subdataset_index = st.selectbox("Select Modified Sub-dataset:", range(len([key for key in experiment_data if key.isdigit() and isinstance(experiment_data[key], dict)])), format_func=lambda x: f"Sub-dataset {x + 1}")
     selected_data = experiment_data.get(str(subdataset_index), {})
 
     # Show data
@@ -168,10 +137,16 @@ def main():
     original_df = show_dataframe("Original Subdataset", selected_data.get("index_subdataset_original", []))
     cell_groups = selected_data.get("cell_groups", {})
 
+
     # === Report Metadata ===
+
+    plate_options = ["96 wells", "48 wells", "24 wells", "12 wells"]
+    default_plate_type = experiment_data.get("plate_type", "96 wells")
+    plate_type_selected = st.selectbox("Select the well plate type:", plate_options, index=plate_options.index(default_plate_type) if default_plate_type in plate_options else 0)
+    
     st.markdown("### Add Report Metadata")
     metadata = {
-        "plate_type": st.text_input("Plate Type", value=experiment_data.get("plate_type", "96 wells")),
+        "plate_type": plate_type_selected,
         "timepoint": st.text_input("Time Point", value=experiment_data.get("timepoint", "")),
         "experiment_type": st.text_input("Experiment Type", value=experiment_data.get("experiment_type", "PrestoBlue")),
         "test_item": st.text_input("Test Item", value=experiment_data.get("test_item", "")),
@@ -193,20 +168,41 @@ def main():
         )
 
         # Save metadata with timestamp as the key
-        report_store = load_report_metadata()
         timestamp = datetime.datetime.now().isoformat()
-        if selected_experiment not in report_store:
-            report_store[selected_experiment] = {}
-        report_store[selected_experiment][timestamp] = metadata
-        save_report_metadata(report_store)
+        if selected_experiment not in report_data:
+            report_data[selected_experiment] = {}
+        report_data[selected_experiment][timestamp] = metadata
+        save_json_file()
         st.info("Report metadata saved successfully.")
+    
+
+    st.markdown("### 🧹 Delete Report Metadata Entry")
+
+    # Loop through experiments and show their timestamps as buttons
+    for experiment_key in report_data.keys():
+        st.markdown(f"**Experiment:** `{experiment_key}`")
+        timestamps = list(report_data[experiment_key].keys())
+
+        for ts in timestamps:
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.code(ts)
+            with col2:
+                if st.button("🗑️ Delete", key=f"delete_{experiment_key}_{ts}"):
+                    # Confirm delete with user
+                    report_data[experiment_key].pop(ts)
+                    if not report_data[experiment_key]:
+                        report_data.pop(experiment_key)  # Remove experiment if empty
+                    save_json_file()
+                    st.success(f"Deleted report metadata for timestamp `{ts}`.")
+                    st.rerun()  # Refresh the UI
+
+
+    # Display Raw Editor Data - DEBUG
+    st.expander("📝 View Raw Editor Data").json(report_data)
 
 if __name__ == "__main__":
     main()
 
 
 
-
-##############################
-# ATENÇÃO
-# # o chat está a confundir-se todo com os jsons. ver e fazer à la pata
