@@ -270,6 +270,33 @@ if selected_experiment:
 
 
 
+
+st.markdown("### Manage Editor json cenas")
+
+# Loop through experiments and show their timestamps as buttons
+for experiment_key in file_data.keys():
+    st.markdown(f"**Experiment:** `{experiment_key}`")
+    indicator = list(file_data[experiment_key]) #file_data[experiment_key]
+
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        for indice in indicator[1:]:
+            st.write(f"**All the process realted with Subdataset** `{indice}`") #st.code(indice)
+    with col2:
+        for indice in indicator[1:]:
+            if st.button("🗑️ Delete", key=f"delete_{experiment_key}_{indice}"):
+                # Confirm delete with user
+                file_data[experiment_key].pop(indice)
+                if not file_data[experiment_key]:
+                    file_data.pop(experiment_key)  # Remove experiment if empty
+                save_tracker()
+                st.rerun()  # Refresh the UI
+                st.success(f"Deleted report metadata for timestamp `{indice}`.")
+
+# Display Raw Editor Data - DEBUG
+st.expander("📝 View Raw Editor Data").json(file_data)
+
+
 # se grupos com o mesmo nome, dar erro ! - esta parte talvez ainda precise de ser vista ...
 # ir buscar a info ao json!!!!!!!!!!!!!!!!!!!!!!!!!! se no json - open, se não - criação
 # [0% betadine]
