@@ -91,7 +91,6 @@ if selected_experiment:
     st.write("## Original Dataset")
     st.dataframe(df)
 
-
     plate_type = st.selectbox(
         "Select the well plate type:",
         ["96 wells", "48 wells", "24 wells", "12 wells"],
@@ -298,6 +297,7 @@ st.expander("📝 View Raw Editor Data").json(file_data)
 
 
 # se grupos com o mesmo nome, dar erro ! - esta parte talvez ainda precise de ser vista ...
-# ir buscar a info ao json!!!!!!!!!!!!!!!!!!!!!!!!!! se no json - open, se não - criação
 # [0% betadine]
 # o clear current group tem de ser melhorado e de resto está
+# criar requirements (txt e tml) - ver as versões das coisas que estou a usar
+# limpar o repositório!!

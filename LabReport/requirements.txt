@@ -1,0 +1,9 @@
+streamlit==1.41.1        # Main UI
+pandas==1.5.3            # Data handling
+numpy==1.23.5            # (Optional, used lightly)
+
+python-dotenv==0.19.2    # Optional, for environment configs
+
+weasyprint==64.0         # For HTML -> PDF
+
+st-table-select-cell==0.3.4    # Custom cell selector (streamlit plugin)
