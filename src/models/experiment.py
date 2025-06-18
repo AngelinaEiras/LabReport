@@ -23,47 +23,6 @@ class Experiment(BaseModel):
     @field_serializer('dataframe')
     def serialize_dataframe(self, value):
         return value.to_json(orient="split", date_format="iso")
-    
-    # @field_validator('dataframe')
-    # @classmethod
-    # def dataframe_validator(cls, df) -> DataFrame:
-    #     try:
-    #         return DataFrame.from_records(df)
-    #     except Exception as e:
-    #         raise ValueError(f"Invalid dataframe: {e}")
-
-
-    # @staticmethod
-    # def split_into_subdatasets(df):
-    #     """Split the DataFrame into sub-datasets based on 'A' (start) and 'H' (end) markers."""
-    #     subdatasets = []
-    #     start_flag = False
-    #     subdataset = pd.DataFrame(columns=df.columns)
-
-    #     for _, row in df.iterrows():
-    #         first_col_value = str(row[0]).strip()
-
-    #         if first_col_value.startswith('A'):  # Start of sub-dataset
-    #             if not subdataset.empty:
-    #                 subdatasets.append(subdataset)
-    #             subdataset = pd.DataFrame(columns=df.columns)
-    #             subdataset = pd.concat([subdataset, row.to_frame().T])
-    #             start_flag = True
-
-    #         elif first_col_value.startswith('H'):  # End of sub-dataset
-    #             subdataset = pd.concat([subdataset, row.to_frame().T])
-    #             subdatasets.append(subdataset)
-    #             subdataset = pd.DataFrame(columns=df.columns)
-    #             start_flag = False
-
-    #         elif start_flag:  # Within a sub-dataset
-    #             subdataset = pd.concat([subdataset, row.to_frame().T])
-
-    #     # Add any leftover subdataset
-    #     if not subdataset.empty:
-    #         subdatasets.append(subdataset)
-
-    #     return subdatasets
 
     @staticmethod
     def split_into_subdatasets(df, plate_type="96 wells"):
@@ -168,7 +127,8 @@ class Experiment(BaseModel):
             self.name = name
 
         
-    def delete(self):
-        os.remove(self.dataframe_path)
-        os.remove(self.metadata_path)
+    # self.dataframe_path or self.metadata_path doesn't exist for now
+    # def delete(self):
+    #     os.remove(self.dataframe_path)
+    #     os.remove(self.metadata_path)
 

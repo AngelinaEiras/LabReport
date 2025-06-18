@@ -56,33 +56,7 @@ def select_file():
 # Function to force a refresh
 def force_refresh():
     time.sleep(0.5)  # Slight delay for the user experience
-    raise st.script_runner.RerunException(st.script_request_queue.RerunData(None))
-
-
-# def is_experiment(file_path):
-#     """Check if the file is a valid PB experiment."""
-#     if file_path.endswith(".xlsx"):
-#         try:
-#             experiment = Experiment.create_experiment_from_file(file_path)
-#             df = experiment.dataframe
-
-#             # Ensure the first column contains PB markers (e.g., 'A' and 'H')
-
-#             #########################################################
-#             # isto depende do numero de wells!!!!!!!
-#             #########################################################
-
-
-
-#             if not df.empty and df.iloc[:, 0].astype(str).str.startswith(("A", "H")).any():
-#                 return True
-#             else:
-#                 return False  # Not a PB experiment
-#         except Exception as e:
-#             st.error(f"Error processing file: {e}")
-#             return False  # Not a valid PB experiment
-#     else:
-#         return False  # Not an Excel file
+    st.rerun()
 
 
 def is_experiment(file_path: str) -> bool:

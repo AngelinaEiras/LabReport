@@ -1,15 +1,48 @@
 {
+    "custom_fields":{
+        "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230308_PB triton seed 06.03.xlsx_0":{
+            "duração da experiência":"30 min",
+            "outra tentativa":"correu bem mas a contagem foi baixa"
+        }
+    },
     "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230308_PB triton seed 06.03.xlsx":{
-        "2025-04-11T14:12:23.151551":{
-            "plate_type":"96 wells",
-            "timepoint":"",
-            "experiment_type":"PrestoBlue",
-            "test_item":"",
-            "test_system":"",
-            "seeding_date":"2025-04-11",
-            "passage":"",
-            "analysis_date":"2025-04-11",
-            "plate_dilution_factor":"3"
+        "2025-06-18T14:43:16.844600":{
+            "Plate Type":"96 wells",
+            "Timepoint":"",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"rtshstrsh",
+            "Test System":"",
+            "Seeding Date":"2025-06-18",
+            "Passage of the Used Subject":"hshrsh",
+            "Analysis Date":"2025-06-18",
+            "Plate Dilution Factor":"",
+            "duração da experiência":"30 min",
+            "outra tentativa":"correu bem mas a contagem foi baixa"
+        }
+    },
+    "subdataset_metadata":{
+        "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230308_PB triton seed 06.03.xlsx_0":{
+            "Plate Type":"96 wells",
+            "Timepoint":"fgaer",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"heresth",
+            "Test System":"ehshshte",
+            "Seeding Date":"2025-06-18",
+            "Passage of the Used Subject":"",
+            "Analysis Date":"2025-06-18",
+            "Plate Dilution Factor":"",
+            "1":"1"
+        },
+        "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230308_PB triton seed 06.03.xlsx_1":{
+            "Plate Type":"96 wells",
+            "Timepoint":"",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"",
+            "Test System":"",
+            "Seeding Date":"2025-06-18",
+            "Passage of the Used Subject":"",
+            "Analysis Date":"2025-06-18",
+            "Plate Dilution Factor":""
         }
     }
 }

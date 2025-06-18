@@ -9,7 +9,14 @@ import numpy as np
 from st_table_select_cell import st_table_select_cell
 from src.models.experiment import Experiment
 
-st.title("Editor - Manage Experiments")
+# Streamlit App Configuration
+st.set_page_config(
+    page_icon="🧪",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.header("Editor - Manage Experiments - título melhor")
 
 # File tracker
 TRACKER_FILE = "file_tracker.json"
@@ -183,10 +190,14 @@ if selected_experiment:
         
         cell_raw = edited_subdataset.iat[row_number, selectedCell['colIndex']]
 
-        if isinstance(cell_raw, (np.generic, pd.Timestamp)):
-            cell_value = cell_raw.item() if hasattr(cell_raw, 'item') else str(cell_raw)
+
+        if isinstance(cell_raw, pd.Timestamp):
+            cell_value = str(cell_raw)
+        elif isinstance(cell_raw, np.generic):
+            cell_value = cell_raw.item()
         else:
             cell_value = cell_raw
+
 
         cell_info = {
             "value": cell_value,
@@ -205,31 +216,59 @@ if selected_experiment:
         selected_group_name = st.text_input("Enter Group Name:", value=st.session_state.group_name.strip())
 
         # Add stats to each group when saving it
+        # if st.button("Save Current Group"):
+        #     if selected_group_name:
+        #         group_stats = calculate_statistics(pd.DataFrame(st.session_state.current_group))
+        #         file_data[selected_experiment][str(selected_index)]["cell_groups"][selected_group_name] = {
+        #             "cells": st.session_state.current_group.copy(),
+        #             "stats": group_stats,
+        #         }
+        #         save_tracker()
+        #         st.success(f"Group '{selected_group_name}' saved with statistical analysis!")
+
+        #         # Reset selection state
+        #         st.session_state.current_group = []
+        #         st.session_state.group_name = ""
+        #         st.session_state.cell_selector_key = str(time.time())  # force refresh of cell selector
+
+        #         st.rerun()  # This will trigger a rerun of the app and reset everything
+        #     else:
+        #         st.warning("Please enter a name for the group before saving.")
+
         if st.button("Save Current Group"):
             if selected_group_name:
-                group_stats = calculate_statistics(pd.DataFrame(st.session_state.current_group))
-                file_data[selected_experiment][str(selected_index)]["cell_groups"][selected_group_name] = {
-                    "cells": st.session_state.current_group.copy(),
-                    "stats": group_stats,
-                }
-                save_tracker()
-                st.success(f"Group '{selected_group_name}' saved with statistical analysis!")
+                existing_groups = file_data[selected_experiment][str(selected_index)]["cell_groups"]
+                
+                if selected_group_name in existing_groups:
+                    st.error(f"A group named '{selected_group_name}' already exists. Please choose a different name.")
+                else:
+                    group_stats = calculate_statistics(pd.DataFrame(st.session_state.current_group))
+                    file_data[selected_experiment][str(selected_index)]["cell_groups"][selected_group_name] = {
+                        "cells": st.session_state.current_group.copy(),
+                        "stats": group_stats,
+                    }
+                    save_tracker()
+                    st.success(f"Group '{selected_group_name}' saved with statistical analysis!")
 
-                # Reset selection state
-                st.session_state.current_group = []
-                st.session_state.group_name = ""
-                st.session_state.cell_selector_key = str(time.time())  # force refresh of cell selector
+                    # Reset selection state
+                    st.session_state.current_group = []
+                    st.session_state.group_name = ""
+                    st.session_state.cell_selector_key = str(time.time())  # force refresh of cell selector
 
-                st.rerun()  # This will trigger a rerun of the app and reset everything
+                    st.rerun() # This will trigger a rerun of the app and reset everything
             else:
                 st.warning("Please enter a name for the group before saving.")
 
 
+        # if st.button("Clear Current Group Selection"):
+        #     st.session_state.current_group = []
+        #     st.session_state.group_name = ""
+        #     st.warning("Please click at least to times to make sure that the unsaved group selection is cleared.")
+
         if st.button("Clear Current Group Selection"):
             st.session_state.current_group = []
             st.session_state.group_name = ""
-            st.warning("Please click at least to times to make sure that thr unsaved group selection is cleared.")
-
+            st.rerun()
 
 
     # Display saved groups
@@ -270,7 +309,7 @@ if selected_experiment:
 
 
 
-st.markdown("### Manage Editor json cenas")
+st.markdown("### Manage Editor")
 
 # Loop through experiments and show their timestamps as buttons
 for experiment_key in file_data.keys():
@@ -292,8 +331,8 @@ for experiment_key in file_data.keys():
                 st.rerun()  # Refresh the UI
                 st.success(f"Deleted report metadata for timestamp `{indice}`.")
 
-# Display Raw Editor Data - DEBUG
-st.expander("📝 View Raw Editor Data").json(file_data)
+# # Display Raw Editor Data - DEBUG
+# st.expander("📝 View Raw Editor Data").json(file_data)
 
 
 # se grupos com o mesmo nome, dar erro ! - esta parte talvez ainda precise de ser vista ...
