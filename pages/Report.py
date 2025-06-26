@@ -44,19 +44,20 @@ def show_dataframe(title, data):
         return df
     return pd.DataFrame()
 
-def generate_pdf_report(metadata, original_df, modified_df, cell_groups):
-    """Generate a PDF report using metadata and dataframes."""
+def generate_pdf_report(all_subdatasets_data):
+    """Generate a PDF report using all subdatasets' data and metadata, with preferred styling."""
     pdf_filepath = "/tmp/report.pdf" # Use /tmp for ephemeral storage
 
     # Ensure full DataFrame is displayed in HTML
     pd.set_option("display.max_rows", None)
     pd.set_option("display.max_columns", None)
 
+    # Preferred CSS from the commented-out version
     css = """
     <style>
     body { font-family: Arial, sans-serif; font-size: 10pt; }
     h1 { text-align: center; color: #333; page-break-after: avoid; }
-    h2, h3 { color: #444; margin-top: 20px; page-break-after: avoid; }
+    h2, h3, h4 { color: #444; margin-top: 20px; page-break-after: avoid; } /* Added h4 for group titles */
     table {
         width: 100%;
         border-collapse: collapse;
@@ -74,46 +75,74 @@ def generate_pdf_report(metadata, original_df, modified_df, cell_groups):
     th {
         background-color: #f0f0f0;
     }
-    .highlight {
+    .highlight { /* This class is defined but not used in the current HTML generation logic. */
         background-color: #c8e6c9;
         font-weight: bold;
     }
     </style>
     """
 
+    # Start HTML content with the desired CSS
     html_content = f"<html><head>{css}</head><body><h1>Experiment Report</h1>"
-    html_content += "<h2>Experiment Details</h2>"
-    for key, value in metadata.items():
-        # Only include metadata fields if their value is not empty after trimming spaces
-        if str(value).strip():
-            html_content += f"<p><strong>{key}:</strong> {value}</p>"
 
-    if not original_df.empty:
-        html_content += "<h2>Original Subdataset</h2>"
-        html_content += original_df.to_html(index=False, escape=False)
+    # Iterate through each subdataset to include its data and styling
+    for index, subdataset_info in enumerate(all_subdatasets_data):
+        metadata = subdataset_info["metadata"]
+        original_df = subdataset_info["original_df"]
+        modified_df = subdataset_info["modified_df"]
+        cell_groups = subdataset_info["cell_groups"]
 
-    if not modified_df.empty:
-        html_content += "<h2>Modified Subdataset</h2>"
-        html_content += modified_df.to_html(index=False, escape=False)
+        # Main heading for each sub-dataset (retained from active version, adjusted for hierarchy)
+        html_content += f"<h2>Sub-dataset {index + 1}</h2>"
+        html_content += "<h3>Experiment Details</h3>" # Consistent with original commented structure for details
 
-    for group_name, group_info in cell_groups.items():
-        html_content += f"<h3>Group: {group_name}</h3>"
-        # Ensure 'cells' data is handled correctly if it's a list of dictionaries
-        cells_data = group_info.get("cells", [])
-        if cells_data:
-            html_content += pd.DataFrame(cells_data).to_html(index=False, escape=False)
+        # Metadata section
+        for key, value in metadata.items():
+            # Only include metadata fields if their value is not empty after trimming spaces
+            if str(value).strip():
+                html_content += f"<p><strong>{key}:</strong> {value}</p>"
+
+        # Original Subdataset
+        if not original_df.empty:
+            html_content += "<h3>Original Subdataset</h3>"
+            html_content += original_df.to_html(index=False, escape=False)
         else:
-            html_content += "<p>No cell data available for this group.</p>"
+            html_content += "<p>No original subdataset data available.</p>" # Added fallback text
 
-        stats = group_info.get("stats", {})
-        if "Error" in stats:
-            html_content += f"<p><strong>Error:</strong> {stats['Error']}</p>"
-        elif stats: # Only display stats table if there are stats
-            # Convert stats to a DataFrame for consistent display, assuming stats is a dict
-            stats_df = pd.DataFrame([stats])
-            html_content += stats_df.to_html(index=False, escape=False)
+        # Modified Subdataset
+        if not modified_df.empty:
+            html_content += "<h3>Modified Subdataset</h3>"
+            html_content += modified_df.to_html(index=False, escape=False)
         else:
-            html_content += "<p>No statistics available for this group.</p>"
+            html_content += "<p>No modified subdataset data available.</p>" # Added fallback text
+
+        # Cell Groups and Statistics
+        if cell_groups: # Check if there are any groups
+            for group_name, group_info in cell_groups.items():
+                html_content += f"<h3>Group: {group_name}</h3>" # Heading level for groups (adjusted from h4 to h3 for look)
+
+                # Cell data within the group
+                cells_data = group_info.get("cells", [])
+                if cells_data:
+                    html_content += pd.DataFrame(cells_data).to_html(index=False, escape=False)
+                else:
+                    html_content += "<p>No cell data available for this group.</p>" # Added fallback text
+
+                # Statistics for the group
+                stats = group_info.get("stats", {})
+                if "Error" in stats:
+                    html_content += f"<p><strong>Error:</strong> {stats['Error']}</p>"
+                elif stats: # Only display stats table if there are stats and no error
+                    stats_df = pd.DataFrame([stats]) # Convert stats to a DataFrame for consistent display
+                    html_content += stats_df.to_html(index=False, escape=False)
+                else:
+                    html_content += "<p>No statistics available for this group.</p>" # Added fallback text
+        else:
+            html_content += "<h3>No Cell Groups Defined</h3>" # Added section if no groups exist
+            html_content += "<p>No cell groups have been defined for this sub-dataset.</p>"
+
+        html_content += "<div style='page-break-after: always;'></div>" # Force page break after each sub-dataset for clarity
+
 
     html_content += "</body></html>"
     
@@ -121,7 +150,8 @@ def generate_pdf_report(metadata, original_df, modified_df, cell_groups):
     HTML(string=html_content).write_pdf(pdf_filepath)
     return pdf_filepath
 
-# === Main App ===
+
+# === Main App (The rest of your Streamlit app code remains unchanged) ===
 def main():
     st.set_page_config(
         page_icon="🧪",
@@ -351,13 +381,29 @@ def main():
 
     # === Report Generation ===
     
-    if st.button("Generate Report", key="generate_report_button"):
-        pdf_path = generate_pdf_report(metadata_for_pdf, original_df, modified_df, cell_groups)
-        st.success("PDF Report Generated Successfully!")
-        
+    if st.button("Generate Full Experiment Report", key="generate_full_report_button"):
+        all_subdatasets_data = []
+
+        for sub_index in sorted_subdataset_indices:
+            sub_data = subdatasets.get(str(sub_index), {})
+            modified_df = pd.DataFrame(sub_data.get("index_subdataset", []))
+            original_df = pd.DataFrame(sub_data.get("index_subdataset_original", []))
+            cell_groups = sub_data.get("cell_groups", {})
+            metadata_key = f"{selected_experiment}_{sub_index}"
+            metadata = report_data.get("subdataset_metadata", {}).get(metadata_key, {})
+
+            all_subdatasets_data.append({
+                "metadata": metadata,
+                "original_df": original_df,
+                "modified_df": modified_df,
+                "cell_groups": cell_groups
+            })
+
+        pdf_path = generate_pdf_report(all_subdatasets_data)
+        st.success("Full Experiment PDF Report Generated Successfully!")
+
         # Define a more descriptive file name using keys from the metadata_for_pdf
         report_file_name = (
-            f"{metadata_for_pdf.get('Plate Type', 'UnknownPlate').replace(' ', '_')}_"
             f"{metadata_for_pdf.get('Test Item', 'UnknownItem').replace(' ', '_')}_"
             f"{metadata_for_pdf.get('Analysis Date', 'UnknownDate').replace('-', '')}_report.pdf"
         )
@@ -369,51 +415,6 @@ def main():
                 file_name=report_file_name,
                 mime="application/pdf"
             )
-
-        # Save a timestamped copy of the generated report's metadata
-        timestamp = datetime.datetime.now().isoformat()
-        if selected_experiment not in report_data:
-            report_data[selected_experiment] = {}
-        # Save a snapshot of the metadata used for this specific report generation
-        report_data[selected_experiment][timestamp] = metadata_for_pdf.copy() 
-
-        save_json_file() # Ensure all accumulated changes are saved
-        st.info("Report metadata saved successfully.")
-        # st.rerun() # Decided not to rerun immediately after report generation, but you can uncomment if desired.
-
-
-    # st.markdown("### 🧹 Delete Saved Report Entries") # isto é mais para possivel debug
-
-    # # Loop through experiments and show their timestamps as buttons for deletion
-    # report_keys_to_display = [k for k in list(report_data.keys()) if k != "subdataset_metadata"] # Exclude the new metadata key
-
-    # if not report_keys_to_display:
-    #     st.info("No saved report metadata entries found.")
-    # else:
-    #     for experiment_key in report_keys_to_display:
-    #         st.markdown(f"**Experiment:** `{experiment_key}`")
-    #         if isinstance(report_data.get(experiment_key), dict): # Check if it's a dict before accessing keys
-    #             timestamps = list(report_data[experiment_key].keys())
-    #             for ts in timestamps:
-    #                 col1, col2 = st.columns([4, 1])
-    #                 with col1:
-    #                     st.code(ts)
-    #                 with col2:
-    #                     if st.button("🗑️ Delete", key=f"delete_report_entry_{experiment_key}_{ts}"):
-    #                         report_data[experiment_key].pop(ts)
-    #                         if not report_data[experiment_key]: # If experiment becomes empty, remove it
-    #                             report_data.pop(experiment_key)
-    #                         save_json_file()
-    #                         st.success(f"Deleted report entry for timestamp `{ts}`.")
-    #                         st.rerun() # Refresh the UI after deletion
-    #         else:
-    #             st.warning(f"Skipping malformed entry for '{experiment_key}' in report_data.")
-
-
-    # # Display Raw Editor Data - DEBUG (Optional, useful for debugging JSON structure)
-    # st.expander("📝 View Raw Report Data (Debug)").json(report_data)
-    # st.expander("📝 View Raw Editor Data (Debug)").json(editor_data)
-
 
 if __name__ == "__main__":
     main()

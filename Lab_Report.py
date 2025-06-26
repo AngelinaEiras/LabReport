@@ -69,13 +69,10 @@ def is_experiment(file_path: str) -> bool:
             if df.empty or df.shape[1] < 2:
                 return False  # Not enough data to qualify as an experiment
 
-            # Attempt splitting using each plate type
-            plate_types = ["12 wells", "24 wells", "48 wells", "96 wells"]
-            for plate_type in plate_types:
-                subdatasets = Experiment.split_into_subdatasets(df, plate_type=plate_type)
-                if subdatasets:  # If splitting yields results, it is a valid experiment
-                    st.info(f"Detected plate type: {plate_type}")
-                    return True
+            #subdatasets = Experiment.split_into_subdatasets(df, plate_type=plate_type)
+            subdatasets,plate_type = Experiment.split_into_subdatasets(df)
+            if subdatasets:  # If splitting yields results, it is a valid experiment
+                return True
 
             st.warning("File does not match any known plate format.")
             return False
@@ -188,3 +185,5 @@ else:
 # ir buscar última versão funcionável ao git!!!
 # https://www.youtube.com/watch?v=jwZb339bs2c
 # Prepare table headers
+
+
