@@ -19,8 +19,8 @@ st.set_page_config(
 st.header("Editor - Manage Experiments") # Updated title as per user's previous request context
 
 # File tracker definitions
-TRACKER_FILE = "file_tracker.json" # Original tracker for all files
-TRACKER_FILE_E = "editor_file_tracker.json" # Tracker specifically for editor data
+TRACKER_FILE = "TRACKERS/file_tracker.json" # Original tracker for all files
+TRACKER_FILE_E = "TRACKERS/editor_file_tracker.json" # Tracker specifically for editor data
 
 PLATE_ROW_RANGES_MAP = {
     tuple(["A", "B", "C"]): "12 wells",

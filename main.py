@@ -19,7 +19,8 @@ st.set_page_config(
 st.title("File Tracker & Experiments")
 
 # Configuration
-TRACKER_FILE = "file_tracker.json"
+TRACKER_FILE = "TRACKERS/file_tracker.json"
+
 
 # Load tracker data
 if os.path.exists(TRACKER_FILE):

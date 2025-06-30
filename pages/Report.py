@@ -6,8 +6,8 @@ from weasyprint import HTML
 import datetime
 
 # === Constants ===
-TRACKER_FILE_E = "editor_file_tracker.json"  # Editor data tracker
-REPORT_METADATA_FILE = "report_metadata_tracker.json"  # Report metadata tracker
+TRACKER_FILE_E = "TRACKERS/editor_file_tracker.json"  # Editor data tracker
+REPORT_METADATA_FILE = "TRACKERS/report_metadata_tracker.json"  # Report metadata tracker
 
 # === Helper Functions ===
 def load_json_file(path):
