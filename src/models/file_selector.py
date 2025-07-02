@@ -7,9 +7,7 @@ from tkinter.filedialog import askopenfilename
 from pydantic import BaseModel, Field
 import pandas as pd
 import streamlit as st
-
 from src.models.experiment import Experiment
-from src.models.section import Section
 
 
 class Selector(BaseModel):
@@ -23,7 +21,6 @@ class Selector(BaseModel):
     filepath: str | None = None
     name: str = ""
     dataframe: pd.DataFrame | None = None
-    sections: dict[str, Section] = Field(default_factory=dict)
     metadata: dict = Field(default_factory=dict)
     note: str = ""
     creation_date: str = Field(default_factory=lambda: datetime.now().isoformat())

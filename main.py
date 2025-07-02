@@ -4,7 +4,6 @@ import os
 import json
 import subprocess
 import time
-from src.models.experiment import Experiment
 from src.models.file_selector import Selector
 
 # Streamlit App Configuration
@@ -51,6 +50,7 @@ if st.button("Select File"):
                 "note": selector.note,
                 "is_experiment": is_exp,
             }
+            st.rerun()
         else:
             st.sidebar.warning(f"File already tracked: {file_path}")
     else:
@@ -88,7 +88,8 @@ if file_data:
         # Editable Note
         note = cols[3].text_area(
             "Add notes here",
-            value=info["note"],
+            # value=info["note"],
+            value=info.get("note", ""), # This way, if note is missing, it shows an empty string safely.
             key=note_key,
             label_visibility="collapsed",
         )

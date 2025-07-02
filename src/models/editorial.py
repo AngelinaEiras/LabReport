@@ -2,280 +2,302 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import re
-import time
-import numpy as np
 from datetime import datetime
+import time
+import re
+import numpy as np
 from st_table_select_cell import st_table_select_cell
 from src.models.experiment import Experiment
 
 class Editor:
-    TRACKER_FILE = "TRACKERS/file_tracker.json"
-    TRACKER_FILE_E = "TRACKERS/editor_file_tracker.json"
-
-    PLATE_ROW_RANGES_MAP = {
-        tuple(["A", "B", "C"]): "12 wells",
-        tuple(["A", "B", "C", "D"]): "24 wells",
-        tuple(["A", "B", "C", "D", "E", "F"]): "48 wells",
-        tuple(["A", "B", "C", "D", "E", "F", "G", "H"]): "96 wells"
-    }
-
     def __init__(self):
-        self.file_data = {}
-        self.experiments_list = []
-        self._load_trackers()
+        # Streamlit page config
 
-    # --- Internal Tracker Methods ---
-    def _save_tracker(self):
+        st.header("Editor - Manage Experiments")
+
+        # Constants
+        self.TRACKER_FILE = "TRACKERS/file_tracker.json"
+        self.TRACKER_FILE_E = "TRACKERS/editor_file_tracker.json"
+        self.PLATE_ROW_RANGES_MAP = {
+            tuple(["A", "B", "C"]): "12 wells",
+            tuple(["A", "B", "C", "D"]): "24 wells",
+            tuple(["A", "B", "C", "D", "E", "F"]): "48 wells",
+            tuple(["A", "B", "C", "D", "E", "F", "G", "H"]): "96 wells"
+        }
+
+        # Load editor-specific tracker
+        self.file_data = self.load_tracker()
+
+        # Initialize experiment list
+        if "experiments_list" not in st.session_state:
+            self.load_experiment_list()
+
+    def save_tracker(self):
         try:
-            with open(self.TRACKER_FILE_E, "w", encoding='utf-8') as f:
-                json.dump(self.file_data, f, ensure_ascii=False, indent=4)
+            with open(self.TRACKER_FILE_E, "w", encoding='utf-8') as file:
+                json.dump(self.file_data, file, ensure_ascii=False, indent=4, separators=(",", ":"))
+        except TypeError as e:
+            st.error(f"JSON Serialization Error: {e}")
+            st.json(self.file_data)
         except Exception as e:
             st.error(f"Error saving tracker: {e}")
 
-    def _load_trackers(self):
+    def load_tracker(self):
         if os.path.exists(self.TRACKER_FILE_E):
             try:
-                with open(self.TRACKER_FILE_E, "r") as f:
-                    self.file_data = json.load(f)
-            except:
-                self.file_data = {}
+                with open(self.TRACKER_FILE_E, "r") as file:
+                    return json.load(file)
+            except json.JSONDecodeError:
+                st.error("Editor file tracker corrupted. Resetting.")
+                os.remove(self.TRACKER_FILE_E)
+                return {}
+            except Exception as e:
+                st.error(f"Error loading tracker: {e}")
+                return {}
+        return {}
 
+    def load_experiment_list(self):
         if os.path.exists(self.TRACKER_FILE):
             try:
-                with open(self.TRACKER_FILE, "r") as f:
-                    data = json.load(f)
-                    self.experiments_list = [
-                        path for path, meta in data.items() if meta.get("is_experiment", False)
-                    ]
-            except:
-                self.experiments_list = []
+                with open(self.TRACKER_FILE, "r") as file:
+                    tracker_data = json.load(file)
+                st.session_state.experiments_list = [
+                    path for path, info in tracker_data.items()
+                    if info.get("is_experiment", False)
+                ]
+            except json.JSONDecodeError:
+                st.error(f"Main tracker '{self.TRACKER_FILE}' corrupted.")
+                st.session_state.experiments_list = []
+            except Exception as e:
+                st.error(f"Error loading main tracker: {e}")
+                st.session_state.experiments_list = []
+        else:
+            st.session_state.experiments_list = []
 
-        # Sync to session state
-        st.session_state.setdefault("experiments_list", self.experiments_list)
-        st.session_state.setdefault("selected_experiment_key_in_session", None)
-        st.session_state.setdefault("subdatasets", [])
-        st.session_state.setdefault("selected_experiment_for_subdatasets", None)
-        st.session_state.setdefault("selected_subdataset_index", 0)
-        st.session_state.setdefault("current_group", [])
-        st.session_state.setdefault("group_name", "")
-        st.session_state.setdefault("cell_selector_key", str(time.time()))
-
-    # --- Helper Utilities ---
-    @staticmethod
-    def _index_to_letter(idx):
+    def index_to_letter(self, idx):
         letters = ""
         while idx >= 0:
             letters = chr(65 + (idx % 26)) + letters
             idx = (idx // 26) - 1
         return letters
 
-    @staticmethod
-    def _calculate_statistics(group_df):
-        numeric = pd.to_numeric(group_df["value"], errors="coerce").dropna()
-        if not numeric.empty:
-            return {
-                "Mean": numeric.mean(),
-                "Standard Deviation": numeric.std(),
-                "Coefficient of Variation": numeric.std() / numeric.mean(),
-                "Min": numeric.min(),
-                "Max": numeric.max()
+    def calculate_statistics(self, group_df):
+        numeric_values = pd.to_numeric(group_df["value"], errors="coerce").dropna()
+        if not numeric_values.empty:
+            stats = {
+                "Mean": numeric_values.mean(),
+                "Standard Deviation": numeric_values.std(),
+                "Coefficient of Variation": (numeric_values.std() / numeric_values.mean()),
+                "Min": numeric_values.min(),
+                "Max": numeric_values.max(),
             }
+            return stats
         return {"Error": "No numerical data found for statistics"}
 
-    @staticmethod
-    def _safe_key(name):
+    def safe_key(self, name):
         return re.sub(r'\W+', '_', name)
 
-    # --- Main Public UI Interface ---
-    def run_editor(self):
-        selected_experiment = self._render_experiment_selection()
-        if not selected_experiment:
-            return
-
-        self._handle_experiment(selected_experiment)
-        edited_df = self._render_subdataset_editor(selected_experiment)
-        self._render_group_creation_ui(selected_experiment, edited_df)
-        self._render_saved_groups_ui(selected_experiment)
-
-    def _render_experiment_selection(self):
+    def run(self):
         st.write("---")
-        col1, col2 = st.columns([0.8, 0.2])
 
-        with col1:
-            selected = st.selectbox(
-                "Select experiment:",
+        selected_experiment_col, delete_button_col = st.columns([0.8, 0.2])
+
+        with selected_experiment_col:
+            selected_experiment = st.selectbox(
+                "Select an experiment to edit:",
                 st.session_state.experiments_list,
-                index=st.session_state.experiments_list.index(
-                    st.session_state.selected_experiment_key_in_session
-                ) if st.session_state.selected_experiment_key_in_session in st.session_state.experiments_list else 0,
-                format_func=lambda x: os.path.basename(x) if x else "No experiments"
+                format_func=lambda x: os.path.basename(x) if x else "No experiments",
+                key="selected_experiment_dropdown"
             )
-            st.session_state.selected_experiment_key_in_session = selected
 
-        with col2:
+        with delete_button_col:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🗑️ Delete", disabled=not selected):
-                st.session_state.confirm_delete_experiment = selected
+            if st.button("🗑️ Delete Selected Experiment", disabled=not selected_experiment):
+                st.session_state.confirm_delete_experiment = selected_experiment
 
-        if st.session_state.get("confirm_delete_experiment"):
-            self._confirm_delete_experiment(st.session_state.confirm_delete_experiment)
+        if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
+            self.confirm_delete_experiment(st.session_state.confirm_delete_experiment)
+        else:
+            st.write("---")
+            if selected_experiment:
+                self.edit_experiment(selected_experiment)
 
-        st.write("---")
-        return selected
-
-    def _confirm_delete_experiment(self, experiment):
-        st.warning(f"Delete ALL data for '{os.path.basename(experiment)}'? This cannot be undone.")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Yes, Delete"):
-                self.file_data.pop(experiment, None)
-                st.session_state.experiments_list.remove(experiment)
-                self._save_tracker()
-                st.success(f"Experiment '{os.path.basename(experiment)}' deleted.")
+    def confirm_delete_experiment(self, exp_to_delete):
+        st.warning(f"Confirm delete '{os.path.basename(exp_to_delete)}'? This cannot be undone.")
+        col_yes, col_no = st.columns(2)
+        with col_yes:
+            if st.button("Yes, Delete All Data"):
+                if exp_to_delete in self.file_data:
+                    del self.file_data[exp_to_delete]
+                if exp_to_delete in st.session_state.experiments_list:
+                    st.session_state.experiments_list.remove(exp_to_delete)
+                self.save_tracker()
+                st.success(f"Experiment '{os.path.basename(exp_to_delete)}' deleted.")
                 del st.session_state.confirm_delete_experiment
                 st.rerun()
-        with col2:
-            if st.button("Cancel"):
+        with col_no:
+            if st.button("No, Cancel"):
                 del st.session_state.confirm_delete_experiment
                 st.rerun()
 
-    def _handle_experiment(self, experiment):
-        if experiment not in self.file_data:
-            self.file_data[experiment] = {"plate_type": ''}
-            self._save_tracker()
+    def edit_experiment(self, selected_experiment):
+        if selected_experiment not in self.file_data:
+            self.file_data[selected_experiment] = {"plate_type": ''}
+            self.save_tracker()
 
-        exp = Experiment.create_experiment_from_file(experiment)
-        df = exp.dataframe
+        experiment = Experiment.create_experiment_from_file(selected_experiment)
+        df = experiment.dataframe
+
         st.write("## Original Dataset")
         st.dataframe(df)
 
-        if st.session_state.selected_experiment_for_subdatasets != experiment:
+        if "subdatasets" not in st.session_state or st.session_state.selected_experiment_for_subdatasets != selected_experiment:
             st.session_state.subdatasets, valid_rows = Experiment.split_into_subdatasets(df)
-            st.session_state.selected_experiment_for_subdatasets = experiment
+            st.session_state.selected_experiment_for_subdatasets = selected_experiment
             st.session_state.selected_subdataset_index = 0
+            inferred_plate = self.PLATE_ROW_RANGES_MAP.get(tuple(valid_rows), "Unknown wells")
+            self.file_data[selected_experiment]["plate_type"] = inferred_plate
+            self.save_tracker()
+            st.info(f"Inferred plate: **{inferred_plate}**")
 
-            inferred = self.PLATE_ROW_RANGES_MAP.get(tuple(valid_rows), "Unknown wells")
-            self.file_data[experiment]["plate_type"] = inferred
-            self._save_tracker()
-            st.info(f"Inferred plate type: **{inferred}**")
-
-    def _render_subdataset_editor(self, experiment):
-        idx = st.selectbox(
-            "Choose sub-dataset:",
+        selected_index = st.selectbox(
+            "Select a sub-dataset:",
             range(len(st.session_state.subdatasets)),
-            format_func=lambda x: f"Sub-dataset {x+1}",
-            index=st.session_state.selected_subdataset_index
+            format_func=lambda x: f"Sub-dataset {x + 1}",
+            index=st.session_state.get("selected_subdataset_index", 0)
         )
-        st.session_state.selected_subdataset_index = idx
+        st.session_state.selected_subdataset_index = selected_index
 
-        if str(idx) not in self.file_data[experiment]:
-            self.file_data[experiment][str(idx)] = {
-                "index_subdataset": [],
-                "cell_groups": {},
-                "others": "",
-                "renamed_columns": {}
-            }
+        sub_data = self.file_data[selected_experiment].setdefault(str(selected_index), {
+            "index_subdataset": [],
+            "cell_groups": {},
+            "others": "",
+            "renamed_columns": {},
+        })
+        self.save_tracker()
 
-        saved_records = self.file_data[experiment][str(idx)].get("index_subdataset", [])
-        df = pd.DataFrame(saved_records) if saved_records else st.session_state.subdatasets[idx].reset_index(drop=True)
+        saved_records = sub_data.get("index_subdataset")
+        if saved_records:
+            sub_df = pd.DataFrame(saved_records)
+        else:
+            sub_df = st.session_state.subdatasets[selected_index].reset_index(drop=True)
 
-        renames = self.file_data[experiment][str(idx)].get("renamed_columns", {})
-        df = df.rename(columns=renames)
+        renamed = sub_data.get("renamed_columns", {})
+        sub_df = sub_df.rename(columns=renamed)
 
         with st.expander("🔤 Rename Columns"):
             new_names = {}
-            for col in df.columns:
-                key = f"rename_{self._safe_key(col)}_{idx}_{experiment}"
-                new_col = st.text_input(f"Rename {col}:", value=renames.get(col, col), key=key)
-                new_names[col] = new_col
-            if new_names != renames:
-                self.file_data[experiment][str(idx)]["renamed_columns"] = new_names
-                df = df.rename(columns=new_names)
-                self._save_tracker()
+            for col in sub_df.columns:
+                key_safe = f"rename_{self.safe_key(col)}_{selected_index}_{selected_experiment}"
+                new_name = st.text_input(f"Rename {col}:", value=col, key=key_safe)
+                new_names[col] = new_name
+            if new_names != renamed:
+                sub_data["renamed_columns"] = new_names
+                self.save_tracker()
+                sub_df = sub_df.rename(columns=new_names)
 
-        self.file_data[experiment][str(idx)]["index_subdataset_original"] = df.to_dict(orient="records")
-        self._save_tracker()
+        sub_data["index_subdataset_original"] = sub_df.to_dict(orient="records")
+        self.save_tracker()
 
         st.subheader("Subdataset")
-        edited = st.data_editor(df, height=320, use_container_width=True, key=f"editor_{idx}_{experiment}")
-        self.file_data[experiment][str(idx)]["index_subdataset"] = edited.to_dict(orient="records")
-        self._save_tracker()
-        return edited
+        edited_df = st.data_editor(
+            sub_df,
+            height=320,
+            use_container_width=True,
+            key=f"editor_{selected_index}_{selected_experiment}"
+        )
+        sub_data["index_subdataset"] = edited_df.to_dict(orient="records")
+        self.save_tracker()
 
-    def _render_group_creation_ui(self, experiment, df):
-        st.subheader("Create Cell Groups")
-        idx = st.session_state.selected_subdataset_index
-        cell = st_table_select_cell(df)
+        self.handle_cell_selection(selected_experiment, selected_index, edited_df, sub_data)
 
-        if cell:
-            row_idx = cell["rowId"]
-            col_idx = cell["colIndex"]
-            row_letter = self._index_to_letter(row_idx)
-            col_name = df.columns[col_idx]
-            val = df.iat[row_idx, col_idx]
-            if isinstance(val, pd.Timestamp):
-                val = str(val)
-            elif isinstance(val, np.generic):
-                val = val.item()
+        self.display_saved_groups(selected_experiment, selected_index, sub_data)
 
-            cell_info = {"value": val, "row": row_letter, "column": col_name}
-            if cell_info not in st.session_state.current_group:
-                st.session_state.current_group.append(cell_info)
-                st.success(f"Cell {row_letter}, {col_name} added!")
+    def handle_cell_selection(self, exp, sub_idx, df, sub_data):
+        st.subheader("Select Cells to Create Groups")
+
+        if "current_group" not in st.session_state:
+            st.session_state.current_group = []
+        if "group_name" not in st.session_state:
+            st.session_state.group_name = ""
+
+        selected_cell = st_table_select_cell(df)
+        if selected_cell:
+            row = int(selected_cell['rowId'])
+            col = df.columns[selected_cell['colIndex']]
+            val = df.iat[row, selected_cell['colIndex']]
+            val = val.item() if isinstance(val, np.generic) else str(val)
+            info = {
+                "value": val,
+                "row": self.index_to_letter(row),
+                "column": col,
+            }
+            if info not in st.session_state.current_group:
+                st.session_state.current_group.append(info)
+                st.success(f"Added {info}")
 
         if st.session_state.current_group:
-            st.write("### Current Group")
+            st.write("### Current Group (Unsaved)")
             st.table(pd.DataFrame(st.session_state.current_group))
+            st.session_state.group_name = st.text_input("Group Name:", value=st.session_state.group_name)
 
-            name = st.text_input("Group Name:", value=st.session_state.group_name.strip(), key=f"group_name_{idx}_{experiment}")
-            st.session_state.group_name = name
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Save Group", key=f"save_group_{idx}_{experiment}"):
-                    if name:
-                        group_data = self.file_data[experiment][str(idx)]["cell_groups"]
-                        if name in group_data:
-                            st.error("Group name already exists.")
+            col_save, col_clear = st.columns(2)
+            with col_save:
+                if st.button("Save Current Group"):
+                    if st.session_state.group_name:
+                        groups = sub_data["cell_groups"]
+                        if st.session_state.group_name in groups:
+                            st.error(f"Group '{st.session_state.group_name}' exists.")
                         else:
-                            stats = self._calculate_statistics(pd.DataFrame(st.session_state.current_group))
-                            group_data[name] = {"cells": st.session_state.current_group.copy(), "stats": stats}
-                            self._save_tracker()
-                            st.success(f"Group '{name}' saved!")
+                            stats = self.calculate_statistics(pd.DataFrame(st.session_state.current_group))
+                            groups[st.session_state.group_name] = {
+                                "cells": st.session_state.current_group.copy(),
+                                "stats": stats,
+                            }
+                            self.save_tracker()
+                            st.success("Group saved.")
                             st.session_state.current_group = []
                             st.session_state.group_name = ""
                             st.rerun()
                     else:
-                        st.warning("Enter a group name.")
-            with col2:
-                if st.button("Clear Group", key=f"clear_group_{idx}_{experiment}"):
+                        st.warning("Please enter a group name.")
+            with col_clear:
+                if st.button("Clear Selection"):
                     st.session_state.current_group = []
                     st.session_state.group_name = ""
                     st.rerun()
 
-    def _render_saved_groups_ui(self, experiment):
-        idx = str(st.session_state.selected_subdataset_index)
-        groups = self.file_data[experiment][idx]["cell_groups"]
-        if not groups:
-            st.info("No saved groups.")
-            return
+    def display_saved_groups(self, exp, sub_idx, sub_data):
+        st.subheader("Saved Groups & Statistics")
+        if sub_data["cell_groups"]:
+            for g_name, g_data in sub_data["cell_groups"].items():
+                df = pd.DataFrame(g_data["cells"])
+                col1, col2 = st.columns([6,1])
+                with col1:
+                    st.write(f"### Group: {g_name}")
+                with col2:
+                    if st.button("🗑️ Delete", key=f"delete_group_{g_name}_{sub_idx}_{exp}"):
+                        st.session_state.confirm_delete_group = {"exp": exp, "sub": str(sub_idx), "group": g_name}
 
-        st.subheader("Saved Groups")
-        for name, data in groups.items():
-            st.write(f"### Group: {name}")
-            group_df = pd.DataFrame(data.get("cells", []))
-            st.table(group_df)
+                if st.session_state.get("confirm_delete_group", {}).get("group") == g_name:
+                    st.warning(f"Confirm deletion of '{g_name}'?")
+                    col_yes, col_no = st.columns(2)
+                    with col_yes:
+                        if st.button("Yes, Delete"):
+                            del sub_data["cell_groups"][g_name]
+                            self.save_tracker()
+                            st.rerun()
+                    with col_no:
+                        if st.button("No, Cancel"):
+                            del st.session_state.confirm_delete_group
+                            st.rerun()
+                else:
+                    st.table(df)
+                    stats = g_data["stats"]
+                    if stats and "Error" not in stats:
+                        st.table(pd.DataFrame(stats, index=["Value"]))
+                    else:
+                        st.warning(stats.get("Error", "No stats available."))
+        else:
+            st.info("No groups saved.")
 
-            stats = data.get("stats", {})
-            if "Error" not in stats:
-                st.write("#### Statistics")
-                st.table(pd.DataFrame(stats, index=["Value"]))
-            else:
-                st.warning(stats["Error"])
-
-            if st.button(f"🗑️ Delete Group '{name}'", key=f"delete_{name}_{idx}_{experiment}"):
-                del groups[name]
-                self._save_tracker()
-                st.success(f"Deleted group '{name}'")
-                st.rerun()

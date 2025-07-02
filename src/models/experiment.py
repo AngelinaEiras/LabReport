@@ -5,8 +5,13 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 import pandas as pd
 from pandas import DataFrame, read_excel, json_normalize
 import streamlit as st
-from src.models.section import Section # Assuming Section is correctly defined elsewhere
 
+PLATE_ROW_RANGES={
+            "12 wells": ["A", "B", "C"],
+            "24 wells": ["A", "B", "C", "D"],
+            "48 wells": ["A", "B", "C", "D", "E", "F"],
+            "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
+        }
 
 class Experiment(BaseModel):
     class Config:
@@ -14,7 +19,6 @@ class Experiment(BaseModel):
 
     name: str
     dataframe: DataFrame
-    sections: dict[str, Section]
     filepath: str
     creation_date: str = Field(default_factory=lambda: str(datetime.now()))
     last_modified: str = Field(default_factory=lambda: str(datetime.now()))
@@ -114,8 +118,7 @@ class Experiment(BaseModel):
             
         return cls(
             name=name,
-            dataframe=dataframe, 
-            sections={}, # Assuming sections are handled elsewhere or initialized empty
+            dataframe=dataframe,
             filepath=f"experiments/{name}.json", # Standardized filepath
             note = "",  # Initialize with an empty string
             )
@@ -133,8 +136,7 @@ class Experiment(BaseModel):
 
         return cls(
             name=name,
-            dataframe=dataframe, 
-            sections={}, # Assuming sections are handled elsewhere or initialized empty
+            dataframe=dataframe,
             filepath=f"experiments/{name}.json", # Standardized filepath
             note = "",  # Initialize with an empty string
             )
