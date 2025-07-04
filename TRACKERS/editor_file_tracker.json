@@ -140,7 +140,39 @@
                     "Unnamed: 14":NaN
                 }
             ],
-            "cell_groups":{},
+            "cell_groups":{
+                "jjy":{
+                    "cells":[
+                        {
+                            "value":2127,
+                            "row":"D",
+                            "column":"betadine [0]"
+                        },
+                        {
+                            "value":39986.0,
+                            "row":"B",
+                            "column":"30%"
+                        },
+                        {
+                            "value":30115.0,
+                            "row":"C",
+                            "column":"30%"
+                        },
+                        {
+                            "value":25368.0,
+                            "row":"D",
+                            "column":"30%"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":24399.0,
+                        "Standard Deviation":16047.92998073791,
+                        "Coefficient of Variation":0.6577290044976397,
+                        "Min":2127.0,
+                        "Max":39986.0
+                    }
+                }
+            },
             "others":"",
             "renamed_columns":{
                 "letras":"letras",
@@ -293,6 +325,371 @@
                     "Unnamed: 10":NaN,
                     "Unnamed: 11":NaN,
                     "Unnamed: 12":NaN,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ]
+        },
+        "1":{
+            "index_subdataset":[
+                {
+                    "letras":"A",
+                    "betadine [0]":11,
+                    "Unnamed: 2":13.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":0.0,
+                    "Unnamed: 8":0.0,
+                    "Unnamed: 9":0.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":14,
+                    "Unnamed: 12":3.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"B",
+                    "betadine [0]":2129,
+                    "Unnamed: 2":57794.0,
+                    "Unnamed: 3":56365.0,
+                    "Unnamed: 4":63107.0,
+                    "Unnamed: 5":53282.0,
+                    "Unnamed: 6":42102.0,
+                    "A549 P10 10k/poço 6/3 AE":11408.0,
+                    "Unnamed: 8":2577.0,
+                    "Unnamed: 9":2475.0,
+                    "Unnamed: 10":45924.0,
+                    "Unnamed: 11":47802,
+                    "Unnamed: 12":20.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"C",
+                    "betadine [0]":2134,
+                    "Unnamed: 2":60499.0,
+                    "Unnamed: 3":63196.0,
+                    "Unnamed: 4":57014.0,
+                    "Unnamed: 5":56476.0,
+                    "Unnamed: 6":23602.0,
+                    "A549 P10 10k/poço 6/3 AE":17614.0,
+                    "Unnamed: 8":2669.0,
+                    "Unnamed: 9":2451.0,
+                    "Unnamed: 10":55364.0,
+                    "Unnamed: 11":53261,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"D",
+                    "betadine [0]":2127,
+                    "Unnamed: 2":53721.0,
+                    "Unnamed: 3":60310.0,
+                    "Unnamed: 4":52580.0,
+                    "Unnamed: 5":49209.0,
+                    "Unnamed: 6":18496.0,
+                    "A549 P10 10k/poço 6/3 AE":12069.0,
+                    "Unnamed: 8":2597.0,
+                    "Unnamed: 9":2460.0,
+                    "Unnamed: 10":56028.0,
+                    "Unnamed: 11":48803,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"E",
+                    "betadine [0]":0,
+                    "Unnamed: 2":9.0,
+                    "Unnamed: 3":8.0,
+                    "Unnamed: 4":5.0,
+                    "Unnamed: 5":5.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":3.0,
+                    "Unnamed: 8":5.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":9.0,
+                    "Unnamed: 11":10,
+                    "Unnamed: 12":4.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"F",
+                    "betadine [0]":0,
+                    "Unnamed: 2":4.0,
+                    "Unnamed: 3":29.0,
+                    "Unnamed: 4":6.0,
+                    "Unnamed: 5":17.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":7.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":10.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":4,
+                    "Unnamed: 12":10.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"G",
+                    "betadine [0]":1,
+                    "Unnamed: 2":12.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":2.0,
+                    "Unnamed: 6":7.0,
+                    "A549 P10 10k/poço 6/3 AE":19.0,
+                    "Unnamed: 8":7.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":16.0,
+                    "Unnamed: 11":17,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"H",
+                    "betadine [0]":9,
+                    "Unnamed: 2":0.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":16.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":20.0,
+                    "A549 P10 10k/poço 6/3 AE":13.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":17.0,
+                    "Unnamed: 10":22.0,
+                    "Unnamed: 11":7,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ],
+            "cell_groups":{
+                "gggg":{
+                    "cells":[
+                        {
+                            "value":13.0,
+                            "row":"A",
+                            "column":"Unnamed: 2"
+                        },
+                        {
+                            "value":57794.0,
+                            "row":"B",
+                            "column":"Unnamed: 2"
+                        },
+                        {
+                            "value":60499.0,
+                            "row":"C",
+                            "column":"Unnamed: 2"
+                        },
+                        {
+                            "value":53721.0,
+                            "row":"D",
+                            "column":"Unnamed: 2"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":43006.75,
+                        "Standard Deviation":28797.56508659485,
+                        "Coefficient of Variation":0.669605703444107,
+                        "Min":13.0,
+                        "Max":60499.0
+                    }
+                },
+                "htrhj":{
+                    "cells":[
+                        {
+                            "value":53721.0,
+                            "row":"D",
+                            "column":"Unnamed: 2"
+                        },
+                        {
+                            "value":11,
+                            "row":"A",
+                            "column":"betadine [0]"
+                        },
+                        {
+                            "value":2129,
+                            "row":"B",
+                            "column":"betadine [0]"
+                        },
+                        {
+                            "value":2134,
+                            "row":"C",
+                            "column":"betadine [0]"
+                        },
+                        {
+                            "value":2127,
+                            "row":"D",
+                            "column":"betadine [0]"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":12024.4,
+                        "Standard Deviation":23327.160731644988,
+                        "Coefficient of Variation":1.9399854239417342,
+                        "Min":11.0,
+                        "Max":53721.0
+                    }
+                }
+            },
+            "others":"",
+            "renamed_columns":{
+                "letras":"letras",
+                "betadine [0]":"betadine [0]",
+                "Unnamed: 2":"Unnamed: 2",
+                "Unnamed: 3":"Unnamed: 3",
+                "Unnamed: 4":"Unnamed: 4",
+                "Unnamed: 5":"Unnamed: 5",
+                "Unnamed: 6":"Unnamed: 6",
+                "A549 P10 10k/poço 6/3 AE":"A549 P10 10k/poço 6/3 AE",
+                "Unnamed: 8":"Unnamed: 8",
+                "Unnamed: 9":"Unnamed: 9",
+                "Unnamed: 10":"Unnamed: 10",
+                "Unnamed: 11":"Unnamed: 11",
+                "Unnamed: 12":"Unnamed: 12",
+                "Unnamed: 13":"Unnamed: 13",
+                "Unnamed: 14":"Unnamed: 14"
+            },
+            "index_subdataset_original":[
+                {
+                    "letras":"A",
+                    "betadine [0]":11,
+                    "Unnamed: 2":13.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":0.0,
+                    "Unnamed: 8":0.0,
+                    "Unnamed: 9":0.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":14,
+                    "Unnamed: 12":3.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"B",
+                    "betadine [0]":2129,
+                    "Unnamed: 2":57794.0,
+                    "Unnamed: 3":56365.0,
+                    "Unnamed: 4":63107.0,
+                    "Unnamed: 5":53282.0,
+                    "Unnamed: 6":42102.0,
+                    "A549 P10 10k/poço 6/3 AE":11408.0,
+                    "Unnamed: 8":2577.0,
+                    "Unnamed: 9":2475.0,
+                    "Unnamed: 10":45924.0,
+                    "Unnamed: 11":47802,
+                    "Unnamed: 12":20.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"C",
+                    "betadine [0]":2134,
+                    "Unnamed: 2":60499.0,
+                    "Unnamed: 3":63196.0,
+                    "Unnamed: 4":57014.0,
+                    "Unnamed: 5":56476.0,
+                    "Unnamed: 6":23602.0,
+                    "A549 P10 10k/poço 6/3 AE":17614.0,
+                    "Unnamed: 8":2669.0,
+                    "Unnamed: 9":2451.0,
+                    "Unnamed: 10":55364.0,
+                    "Unnamed: 11":53261,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"D",
+                    "betadine [0]":2127,
+                    "Unnamed: 2":53721.0,
+                    "Unnamed: 3":60310.0,
+                    "Unnamed: 4":52580.0,
+                    "Unnamed: 5":49209.0,
+                    "Unnamed: 6":18496.0,
+                    "A549 P10 10k/poço 6/3 AE":12069.0,
+                    "Unnamed: 8":2597.0,
+                    "Unnamed: 9":2460.0,
+                    "Unnamed: 10":56028.0,
+                    "Unnamed: 11":48803,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"E",
+                    "betadine [0]":0,
+                    "Unnamed: 2":9.0,
+                    "Unnamed: 3":8.0,
+                    "Unnamed: 4":5.0,
+                    "Unnamed: 5":5.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":3.0,
+                    "Unnamed: 8":5.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":9.0,
+                    "Unnamed: 11":10,
+                    "Unnamed: 12":4.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"F",
+                    "betadine [0]":0,
+                    "Unnamed: 2":4.0,
+                    "Unnamed: 3":29.0,
+                    "Unnamed: 4":6.0,
+                    "Unnamed: 5":17.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":7.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":10.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":4,
+                    "Unnamed: 12":10.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"G",
+                    "betadine [0]":1,
+                    "Unnamed: 2":12.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":2.0,
+                    "Unnamed: 6":7.0,
+                    "A549 P10 10k/poço 6/3 AE":19.0,
+                    "Unnamed: 8":7.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":16.0,
+                    "Unnamed: 11":17,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"H",
+                    "betadine [0]":9,
+                    "Unnamed: 2":0.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":16.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":20.0,
+                    "A549 P10 10k/poço 6/3 AE":13.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":17.0,
+                    "Unnamed: 10":22.0,
+                    "Unnamed: 11":7,
+                    "Unnamed: 12":9.0,
                     "Unnamed: 13":560590.0,
                     "Unnamed: 14":NaN
                 }

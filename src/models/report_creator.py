@@ -48,13 +48,12 @@ class ExperimentReportManager:
             return df
         return pd.DataFrame()
 
-    def display_metadata_fields(self, metadata_definitions, current_metadata, subdataset_index):
-        changed = False
-        st.markdown(f"#### General Metadata Fields Sub-dataset {subdataset_index + 1}")
 
+    def display_metadata_fields(self, metadata_definitions, current_metadata):
+        changed = False
         for field_name, props in metadata_definitions.items():
             current_value = current_metadata.get(field_name, props["default_source"])
-            widget_key = f"general_meta_{field_name.replace(' ', '_')}_{subdataset_index}"
+            widget_key = f"general_meta_{field_name.replace(' ', '_')}"
 
             if props["type"] == "text_input":
                 edited_value = st.text_input(field_name, value=current_value, key=widget_key)
@@ -76,6 +75,7 @@ class ExperimentReportManager:
                 changed = True
 
         return changed
+    
 
     def display_custom_metadata(self, current_metadata, metadata_definitions, subdataset_key):
         changed = False
@@ -90,12 +90,14 @@ class ExperimentReportManager:
                 with cols[0]:
                     st.markdown(f"**{k}**")
                 with cols[1]:
-                    new_value = st.text_input("Field Value", value=v, key=f"custom_{k}")
+                    # new_value = st.text_input("Field Value", value=v, key=f"custom_{k}")
+                    new_value = st.text_input("Field Value", value=v, key=f"custom_{subdataset_key}_{k}")
                     if new_value != v:
                         current_metadata[k] = new_value
                         changed = True
                 with cols[2]:
-                    if st.button("🗑️", key=f"del_custom_{k}"):
+                    # if st.button("🗑️", key=f"del_custom_{k}"):
+                    if st.button("🗑️", key=f"del_custom_{subdataset_key}_{k}"):
                         deleted_keys.append(k)
 
         if deleted_keys:
@@ -110,7 +112,8 @@ class ExperimentReportManager:
         return changed
 
     def add_custom_metadata_field(self, current_metadata, subdataset_key):
-        with st.form("add_custom_field_form", clear_on_submit=True):
+        # with st.form("add_custom_field_form", clear_on_submit=True):
+        with st.form(f"add_custom_field_form_{subdataset_key}", clear_on_submit=True):
             new_name = st.text_input("New Field Name")
             new_value = st.text_input("New Field Value")
             submitted = st.form_submit_button("Add Field")
@@ -123,8 +126,9 @@ class ExperimentReportManager:
                 st.success(f"Added custom field: `{new_name}`")
                 st.rerun()
 
+
     # === PDF Generation ===
-    def generate_pdf_report(self, all_subdatasets_data):
+    def generate_pdf_report(self, all_subdatasets_data, experiment_metadata=None):
         pdf_filepath = "/tmp/report.pdf"
 
         css = """
@@ -157,6 +161,15 @@ class ExperimentReportManager:
         """
 
         html = f"<html><head>{css}</head><body><h1>Experiment Report</h1>"
+        
+        # This assumes you pass general metadata separately
+        html += "<h2>Experiment Metadata</h2>"
+        if experiment_metadata:
+            for k, v in experiment_metadata.items():
+                html += f"<p><strong>{k}:</strong> {v}</p>"
+        
+        html += "<div style='page-break-after: always;'></div>"
+
         for idx, sub in enumerate(all_subdatasets_data):
             meta = sub["metadata"]
             orig_df = sub["original_df"]
@@ -164,13 +177,14 @@ class ExperimentReportManager:
             groups = sub["cell_groups"]
 
             html += f"<h2>Sub-dataset {idx + 1}</h2>"
-            for k, v in meta.items():
-                html += f"<p><strong>{k}:</strong> {v}</p>"
+            if meta:
+                for k, v in meta.items():
+                    html += f"<p><strong>{k}:</strong> {v}</p>"
 
-            html += "<h3>Original Subdataset</h3>"
+            html += f"<h3>Original Subdataset {idx + 1}</h3>"
             html += orig_df.to_html(index=False, escape=False) if not orig_df.empty else "<p>No data.</p>"
 
-            html += "<h3>Modified Subdataset</h3>"
+            html += f"<h3>Modified Subdataset {idx + 1}</h3>"
             html += mod_df.to_html(index=False, escape=False) if not mod_df.empty else "<p>No data.</p>"
 
             if groups:
@@ -191,3 +205,11 @@ class ExperimentReportManager:
 
         HTML(string=html).write_pdf(pdf_filepath)
         return pdf_filepath
+
+
+
+############### vou ter de resolver isto
+############### rever o report_metadata_tracker.json pq não está a guardar direito
+############### o pdf gerado não está visivelmente igual ao template
+############### quero colocar Custom Fields entre os subdatasets
+############### ainda adicionar dar erro se colocado Custom Fields só título ou só "recheio"
