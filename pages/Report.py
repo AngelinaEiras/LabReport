@@ -13,18 +13,18 @@ def main():
 
     # Initialize the manager and load data
     manager = ExperimentReportManager()
-    manager.load_data()
-
-    editor_data = manager.editor_data
-    report_data = manager.report_data
+    editor_data = manager.load_json_file("TRACKERS/editor_file_tracker.json")
+    report_data = manager.load_json_file("TRACKERS/report_metadata_tracker.json")
 
     if not editor_data:
         st.warning("No experiment data found.")
         st.stop()
 
-    selected_experiment = st.selectbox("Select an Experiment:", list(editor_data.keys()))
-    if not selected_experiment:
-        st.warning("No experiment selected.")
+    # Use the manager's built-in UI for selecting and optionally deleting experiments
+    selected_experiment = manager.run()
+    # ✅ Check if selection was canceled (e.g., due to deletion)
+    if selected_experiment is None:
+        st.info("Please select an experiment to continue.")
         st.stop()
 
     experiment_data = editor_data[selected_experiment]
@@ -69,20 +69,12 @@ def main():
         "Analysis Date": {
             "type": "date_input",
             "default_source": pd.to_datetime(experiment_data.get("analysis_date", datetime.date.today()))
-        },
-        "Plate Dilution Factor": {
-            "type": "text_input",
-            "default_source": experiment_data.get("plate_dilution_factor", "")
         }
     }
 
 
     # Show single metadata
     metadata_key = selected_experiment
-    # if "experiment_metadata" not in report_data:
-    #     report_data["experiment_metadata"] = {}
-    # current_metadata = report_data["experiment_metadata"].setdefault(metadata_key, {})
-
     experiment_entry = report_data.setdefault(selected_experiment, {})
     current_metadata = experiment_entry.setdefault("general_metadata", {})
 
@@ -91,12 +83,21 @@ def main():
         manager.save_json_file(report_data)
         st.info("Metadata updated.")
 
-    st.markdown("#### Custom Fields")
-    if manager.display_custom_metadata(current_metadata, metadata_fields, metadata_key):
-        manager.save_json_file(report_data)
-        st.info("Custom field changes saved.")
+    # st.markdown("#### Custom Fields")
+    # if manager.display_custom_metadata(current_metadata, metadata_fields, metadata_key):
+    #     manager.save_json_file(report_data)
+    #     st.info("Custom field changes saved.")
 
-    manager.add_custom_metadata_field(current_metadata, metadata_key)
+    # manager.add_custom_metadata_field(current_metadata, metadata_key)
+
+    custom_changed = manager.display_custom_metadata(current_metadata, metadata_fields, metadata_key)
+    custom_added = manager.add_custom_metadata_field(current_metadata, metadata_key)
+
+    if custom_changed or custom_added:
+        manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
+        st.info("Custom field changes saved.")
+        st.rerun()
+
 
     # Loop subdatasets
     for sub_idx in sorted_indices:
@@ -126,16 +127,23 @@ def main():
 
 
         st.markdown("#### Sub-dataset Custom Fields")
-        if manager.display_custom_metadata(sub_fields, metadata_fields, sub_key):
-            manager.save_json_file(report_data)
+        # if manager.display_custom_metadata(sub_fields, metadata_fields, sub_key):
+        #     manager.save_json_file(report_data)
+        #     st.info("Custom subdataset field changes saved.")
+
+        # manager.add_custom_metadata_field(sub_fields, sub_key)
+
+        # # Save whenever the field changes
+        # manager.save_json_file(report_data)
+
+        sub_custom_changed = manager.display_custom_metadata(sub_fields, metadata_fields, sub_key)
+        sub_custom_added = manager.add_custom_metadata_field(sub_fields, sub_key)
+
+        if sub_custom_changed or sub_custom_added:
+            manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
             st.info("Custom subdataset field changes saved.")
+            st.rerun()
 
-        manager.add_custom_metadata_field(sub_fields, sub_key)
-
-
-
-        # Save whenever the field changes
-        manager.save_json_file(report_data)
 
     # Generate report
     if st.button("Generate Full Experiment Report"):
@@ -177,3 +185,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

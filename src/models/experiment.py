@@ -1,133 +1,127 @@
 from datetime import datetime
 import json
 import os
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer
 import pandas as pd
-from pandas import DataFrame, read_excel, json_normalize
+from pandas import DataFrame, read_excel
 import streamlit as st
 
-PLATE_ROW_RANGES={
-            "12 wells": ["A", "B", "C"],
-            "24 wells": ["A", "B", "C", "D"],
-            "48 wells": ["A", "B", "C", "D", "E", "F"],
-            "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
-        }
+# Constant used to map row labels to plate types
+PLATE_ROW_RANGES = {
+    "12 wells": ["A", "B", "C"],
+    "24 wells": ["A", "B", "C", "D"],
+    "48 wells": ["A", "B", "C", "D", "E", "F"],
+    "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
+}
 
 class Experiment(BaseModel):
+    """
+    A model representing a lab experiment backed by a DataFrame and associated metadata.
+    """
+
     class Config:
-        arbitrary_types_allowed = True # Allows pandas DataFrames as types
+        arbitrary_types_allowed = True  # Allows use of pandas DataFrame as a field type
 
-    name: str
-    dataframe: DataFrame
-    filepath: str
-    creation_date: str = Field(default_factory=lambda: str(datetime.now()))
-    last_modified: str = Field(default_factory=lambda: str(datetime.now()))
-    note: str = Field(default="", description="Optional note for the experiment")
+    # Experiment metadata fields
+    name: str                          # Name of the experiment
+    dataframe: DataFrame               # Raw experiment data in a DataFrame
+    filepath: str                      # JSON storage location
+    creation_date: str = Field(default_factory=lambda: str(datetime.now()))  # Auto-filled timestamp
+    last_modified: str = Field(default_factory=lambda: str(datetime.now()))  # Auto-filled timestamp
+    note: str = Field(default="", description="Optional note for the experiment")  # User notes
 
-
+    # ---- SERIALIZERS ----
     @field_serializer('dataframe')
     def serialize_dataframe(self, value: DataFrame):
-        """Serializes a pandas DataFrame to JSON string for Pydantic."""
+        """
+        Serialize DataFrame to a JSON string using 'split' orientation,
+        which includes columns, index, and data separately.
+        """
         return value.to_json(orient="split", date_format="iso")
 
+    # ---- MAIN LOGIC ----
     @staticmethod
     def split_into_subdatasets(df: DataFrame) -> tuple[list[DataFrame], list[str]]:
         """
-        Split the DataFrame into sub-datasets. The plate type is automatically
-        inferred based on the maximum row letter found in the first column of the DataFrame.
-        Returns a tuple: (list of subdatasets, list of valid row letters for the inferred plate type).
+        Automatically split a long experimental DataFrame into separate sub-datasets
+        based on inferred plate layout (12, 24, 48, or 96 wells).
+        
+        Returns:
+            - list of sub-DataFrames
+            - valid row letters for inferred plate type
         """
-        
-        # Define valid row labels for different plate types
-        plate_row_ranges = {
-            "12 wells": ["A", "B", "C"],
-            "24 wells": ["A", "B", "C", "D"],
-            "48 wells": ["A", "B", "C", "D", "E", "F"],
-            "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
-        }
-        
-        # --- Infer plate_type based on actual data in the DataFrame ---
-        # Extract unique leading letters from the first column, convert to uppercase
-        first_col_letters_in_df = df.iloc[:, 0].astype(str).str.strip().str[0].str.upper().unique()
-        
-        # Filter for actual row letters (A-H) and find the alphabetically last one
-        actual_row_letters_present = sorted([
-            letter for letter in first_col_letters_in_df if 'A' <= letter <= 'H'
-        ])
+        # Infer plate type based on max row letter in column 0
+        first_col_letters = df.iloc[:, 0].astype(str).str.strip().str[0].str.upper().unique()
+        actual_row_letters = sorted([l for l in first_col_letters if 'A' <= l <= 'H'])
 
-        inferred_plate_type = "96 wells" # Default assumption if no row letters found or for maximum range
-        if not actual_row_letters_present:
-            # If no standard row letters found, use default and warn
-            st.warning("Could not infer plate type as no standard row letters (A-H) were found in the first column. Defaulting to 96 wells.")
+        # Default fallback if no rows detected
+        inferred_plate_type = "96 wells"
+        if not actual_row_letters:
+            st.warning("Could not infer plate type. Defaulting to 96 wells.")
         else:
-            max_row_letter_found = actual_row_letters_present[-1]
-            if max_row_letter_found <= 'C': # Max letter is A, B, or C
+            max_letter = actual_row_letters[-1]
+            if max_letter <= 'C':
                 inferred_plate_type = "12 wells"
-            elif max_row_letter_found <= 'D': # Max letter is D
+            elif max_letter <= 'D':
                 inferred_plate_type = "24 wells"
-            elif max_row_letter_found <= 'F': # Max letter is E or F
+            elif max_letter <= 'F':
                 inferred_plate_type = "48 wells"
-            else: # Max letter is G or H (or beyond, but constrained by A-H)
-                inferred_plate_type = "96 wells"
-        
-        # Get the valid rows for the inferred plate type
-        valid_rows = plate_row_ranges[inferred_plate_type]
-        # --- End of plate_type inference ---
 
-        start_flag = False
+        valid_rows = PLATE_ROW_RANGES[inferred_plate_type]
+
+        # Subdataset collection logic
         subdatasets = []
         subdataset = pd.DataFrame(columns=df.columns)
+        start_flag = False
 
         for _, row in df.iterrows():
-            first_col_value = str(row.iloc[0]).strip() # Use iloc[0] for first column access
+            first_value = str(row.iloc[0]).strip()
 
-            if first_col_value.startswith(valid_rows[0]):  # Start of a sub-dataset
+            if first_value.startswith(valid_rows[0]):
                 if not subdataset.empty:
                     subdatasets.append(subdataset)
                 subdataset = pd.DataFrame(columns=df.columns)
                 subdataset = pd.concat([subdataset, row.to_frame().T])
                 start_flag = True
 
-            elif first_col_value.startswith(valid_rows[-1]):  # End of a sub-dataset
+            elif first_value.startswith(valid_rows[-1]):
                 subdataset = pd.concat([subdataset, row.to_frame().T])
                 subdatasets.append(subdataset)
                 subdataset = pd.DataFrame(columns=df.columns)
                 start_flag = False
 
-            elif start_flag and first_col_value[0] in valid_rows:  # Rows within a sub-dataset
+            elif start_flag and first_value[0] in valid_rows:
                 subdataset = pd.concat([subdataset, row.to_frame().T])
 
-        # Add the last dataset if it wasn't added
         if not subdataset.empty:
             subdatasets.append(subdataset)
 
-        return subdatasets, valid_rows # Returning both subdatasets and valid_rows
+        return subdatasets, valid_rows
 
-
+    # ---- FACTORY METHODS ----
     @classmethod
     def create_experiment_from_file(cls, filepath: str) -> 'Experiment':
         """
-        Creates an Experiment instance by reading data from an Excel file.
-        The name is derived from the filename, and a default empty note is set.
+        Initialize an Experiment from an Excel file path.
+        The experiment name is derived from the file name.
         """
-        name = os.path.basename(filepath).split(".")[0] # Use os.path.basename for robust name extraction
+        name = os.path.basename(filepath).split(".")[0]  # Strip path and extension
         try:
             dataframe = read_excel(filepath)
         except Exception as e:
             raise ValueError(f"Error reading Excel file {filepath}: {e}")
-            
+
         return cls(
             name=name,
             dataframe=dataframe,
-            filepath=f"experiments/{name}.json", # Standardized filepath
-            note = "",  # Initialize with an empty string
-            )
-    
+            filepath=f"experiments/{name}.json",
+            note=""
+        )
+
     @classmethod
     def create_experiment_from_bytes(cls, bytes_data: bytes, name: str) -> 'Experiment':
         """
-        Creates an Experiment instance from file bytes (e.g., from an upload).
-        A default empty note is set.
+        Create an Experiment from uploaded file bytes (e.g., Streamlit upload).
         """
         try:
             dataframe = read_excel(bytes_data)
@@ -137,72 +131,65 @@ class Experiment(BaseModel):
         return cls(
             name=name,
             dataframe=dataframe,
-            filepath=f"experiments/{name}.json", # Standardized filepath
-            note = "",  # Initialize with an empty string
-            )
-    
+            filepath=f"experiments/{name}.json",
+            note=""
+        )
+
+    # ---- PERSISTENCE ----
     def save(self):
         """
-        Saves the experiment instance to its specified filepath,
-        updating the last_modified timestamp.
+        Save the experiment to its JSON file.
+        This includes serialized DataFrame and metadata.
         """
-        self.last_modified = str(datetime.now())
-        # Ensure the directory exists before saving
+        self.last_modified = str(datetime.now())  # Update modification time
         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
         with open(self.filepath, "w", encoding='utf-8') as file:
-            # Pydantic's model_dump() handles serialization to a dictionary
-            # which then json.dump converts to JSON string
             json.dump(self.model_dump(), file, ensure_ascii=False, indent=4)
-
 
     @classmethod
     def load(cls, filepath: str) -> 'Experiment':
         """
-        Loads an Experiment instance from a JSON file.
-        Handles deserialization of the DataFrame and defaults the note field if missing.
+        Load an experiment from disk. Deserializes DataFrame from saved JSON.
         """
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Experiment file not found: {filepath}")
 
         with open(filepath, "r", encoding='utf-8') as file:
             data = json.load(file)
-            
-            # Deserialize the dataframe from the 'split' orientation JSON string
-            json_data_str = data["dataframe"]
-            json_data = json.loads(json_data_str) # Parse the string back to a dictionary
-            # Ensure proper DataFrame reconstruction with index and columns
-            data["dataframe"] = DataFrame(data=json_data['data'], index=json_data['index'], columns=json_data['columns'])
-            
-            # Default the note field if missing (for backward compatibility)
-            data.setdefault("note", "")
-            
-            # Use Pydantic's model_validate for proper deserialization and validation
-            return Experiment.model_validate(data)
 
+            # Deserialize DataFrame from 'split' format JSON
+            json_data = json.loads(data["dataframe"])
+            data["dataframe"] = DataFrame(
+                data=json_data['data'],
+                index=json_data['index'],
+                columns=json_data['columns']
+            )
 
+            data.setdefault("note", "")  # Ensure backward compatibility
+
+            return cls.model_validate(data)
+
+    # ---- UTILITIES ----
     def rename(self, new_name: str):
         """
-        Renames the experiment by updating its name and moving its JSON file.
-        Raises ValueError if the new name already exists.
+        Rename the experiment and update its associated file.
+        Prevent overwriting an existing experiment with the same name.
         """
         old_filepath = self.filepath
         new_filepath = os.path.join(os.path.dirname(old_filepath), f"{new_name}.json")
 
         if os.path.exists(new_filepath):
             raise ValueError(f"Experiment with name '{new_name}' already exists.")
-        
-        # Update name and filepath
+
+        # Update name and path
         self.name = new_name
         self.filepath = new_filepath
-
-        # Save the updated experiment (will create a new file)
         self.save()
-        
-        # Remove the old file if it still exists and is different from the new one
+
+        # Clean up old file
         if os.path.exists(old_filepath) and old_filepath != new_filepath:
             os.remove(old_filepath)
 
-    # self.dataframe_path or self.metadata_path doesn't exist for
+    # You may add a delete method later if needed
     # def delete(self):
-    #     os.remove(self.dataframe_path)
-    #     os.remove(self.metadata_path)
+    #     os.remove(self.filepath)

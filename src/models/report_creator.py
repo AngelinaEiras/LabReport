@@ -1,22 +1,52 @@
+# === Imports ===
 import streamlit as st
 import pandas as pd
 import os
 import json
 from weasyprint import HTML
 import datetime
+import re
 
 
 class ExperimentReportManager:
+    """
+    Handles experiment metadata and report management using Streamlit.
+    Includes functionalities to load/save JSON metadata, interact with users via UI,
+    manage experiment selections, edit metadata, and generate comprehensive PDF reports.
+    """
+
     def __init__(self,
                  tracker_file="TRACKERS/editor_file_tracker.json",
                  report_metadata_file="TRACKERS/report_metadata_tracker.json"):
+        """
+        Initializes the ExperimentReportManager with optional paths to metadata files.
+
+        Args:
+            tracker_file (str): Path to the editor tracker JSON file.
+            report_metadata_file (str): Path to the report metadata tracker JSON file.
+        """
+
+        # File paths to tracker JSON files
         self.tracker_file = tracker_file
         self.report_metadata_file = report_metadata_file
         self.editor_data = {}
         self.report_data = {}
 
     # === JSON Helper Methods ===
+
     def load_json_file(self, path):
+        """
+        Safely loads a JSON file and returns its contents as a dictionary.
+
+        If the file is corrupted, it will be deleted and an empty dictionary returned.
+
+        Args:
+            path (str): Path to the JSON file.
+
+        Returns:
+            dict: Parsed JSON content or empty dictionary if error occurs.
+        """
+
         if os.path.exists(path):
             try:
                 with open(path, "r") as file:
@@ -25,22 +55,140 @@ class ExperimentReportManager:
                 st.error(f"Error: {os.path.basename(path)} is corrupted. Resetting file.")
                 os.remove(path)
                 return {}
+            except Exception as e:
+                st.error(f"Unexpected error loading {os.path.basename(path)}: {e}")
+                return {}
         return {}
 
-    def save_json_file(self, data):
+    def save_json_file(self, data, path=None):
+        """
+        Saves a dictionary as a JSON file to the specified path.
+
+        Args:
+            data (dict): Dictionary to serialize and save.
+            path (str, optional): Target file path. Defaults to self.report_metadata_file.
+
+        Raises:
+            Displays Streamlit error if serialization or file I/O fails.
+        """
+
+        target_path = path if path else self.report_metadata_file
         try:
-            with open(self.report_metadata_file, "w", encoding="utf-8") as file:
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            with open(target_path, "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=4, separators=(",", ":"))
         except TypeError as e:
-            st.error(f"JSON Serialization Error: {e}")
+            st.error(f"Serialization error saving to {os.path.basename(target_path)}: {e}")
             st.json(data)
+        except Exception as e:
+            st.error(f"An error occurred while saving {os.path.basename(target_path)}: {e}")
 
-    def load_data(self):
-        self.editor_data = self.load_json_file(self.tracker_file)
-        self.report_data = self.load_json_file(self.report_metadata_file)
 
     # === Display Methods ===
+
+    def run(self):
+        """
+        Streamlit UI logic for selecting, displaying, and deleting experiment entries.
+
+        Displays a dropdown to select experiments, supports deletion with confirmation,
+        and updates session state.
+
+        Returns:
+            str or None: The selected experiment key, or None if deletion is in progress or no selection.
+        """
+
+        st.write("---")
+
+        if "selected_experiment_key_for_report" not in st.session_state:
+            st.session_state.selected_experiment_key_for_report = None
+
+        # experiment_keys = list(self.editor_data.keys())
+        editor_data = self.load_json_file(self.tracker_file)
+        experiment_keys = list(editor_data.keys())
+
+        initial_select_index = 0
+
+        if st.session_state.selected_experiment_key_for_report in experiment_keys:
+            initial_select_index = experiment_keys.index(st.session_state.selected_experiment_key_for_report)
+        elif experiment_keys:
+            initial_select_index = 0
+
+        selected_experiment_col, delete_button_col = st.columns([0.8, 0.2])
+
+        # Select experiment
+        with selected_experiment_col:
+            selected_experiment = st.selectbox(
+                "Select an experiment to edit:",
+                experiment_keys,
+                index=initial_select_index,
+                format_func=lambda x: os.path.basename(x) if x else "No experiments available",
+                key="selected_experiment_dropdown"
+            )
+            st.session_state.selected_experiment_key_for_report = selected_experiment
+
+        # Delete button
+        with delete_button_col:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🗑️ Delete Selected Experiment", disabled=not selected_experiment, key="delete_experiment_button"):
+                st.session_state.confirm_delete_experiment = selected_experiment
+
+        # Confirm delete
+        if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
+            exp_to_delete = st.session_state.confirm_delete_experiment
+            st.warning(f"Are you sure you want to delete ALL data for experiment '{os.path.basename(exp_to_delete)}'?")
+
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("Yes, Delete All Data", key="confirm_delete_yes"):
+                    # Remove from editor tracker
+                    # if exp_to_delete in self.editor_data:
+                    #     del self.editor_data[exp_to_delete]
+                    #     self.save_json_file(self.editor_data, path=self.tracker_file)
+                    editor_data = self.load_json_file(self.tracker_file)
+                    if exp_to_delete in editor_data:
+                        del editor_data[exp_to_delete]
+                        self.save_json_file(editor_data, path=self.tracker_file)
+
+
+                    # Remove from report metadata tracker
+                    if "experiment_metadata" in self.report_data:
+                        self.report_data["experiment_metadata"].pop(exp_to_delete, None)
+
+                    if "subdataset_metadata" in self.report_data:
+                        keys_to_delete = [k for k in self.report_data["subdataset_metadata"] if k.startswith(f"{exp_to_delete}_")]
+                        for k in keys_to_delete:
+                            del self.report_data["subdataset_metadata"][k]
+
+                    self.save_json_file(self.report_data, path=self.report_metadata_file)
+
+                    st.success(f"Deleted all data for experiment '{os.path.basename(exp_to_delete)}'")
+                    del st.session_state.confirm_delete_experiment
+                    st.session_state.selected_experiment_key_for_report = None
+                    st.rerun()
+
+            with col_no:
+                if st.button("No, Cancel", key="confirm_delete_no"):
+                    del st.session_state.confirm_delete_experiment
+                    st.info("Deletion cancelled.")
+                    st.rerun()
+
+        if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
+            return None
+
+        return selected_experiment
+
     def show_dataframe(self, title, data):
+        """
+        Displays a pandas DataFrame inside a Streamlit expander.
+
+        Args:
+            title (str): Title displayed above the expander.
+            data (dict or list): Data to convert to a DataFrame.
+
+        Returns:
+            pd.DataFrame: The displayed DataFrame, or empty DataFrame if input is empty.
+        """
+
         if data:
             df = pd.DataFrame(data)
             with st.expander(f"📊 {title}", expanded=False):
@@ -48,25 +196,41 @@ class ExperimentReportManager:
             return df
         return pd.DataFrame()
 
-
     def display_metadata_fields(self, metadata_definitions, current_metadata):
+        """
+        Displays editable predefined metadata fields in the Streamlit UI.
+
+        Args:
+            metadata_definitions (dict): Definitions for each metadata field including type and options.
+            current_metadata (dict): Dictionary of current metadata values.
+
+        Returns:
+            bool: True if any field was changed, False otherwise.
+        """
+
         changed = False
         for field_name, props in metadata_definitions.items():
-            current_value = current_metadata.get(field_name, props["default_source"])
+            current_value = current_metadata.get(field_name, props.get("default_source", ""))
             widget_key = f"general_meta_{field_name.replace(' ', '_')}"
+            edited_value = None
 
             if props["type"] == "text_input":
                 edited_value = st.text_input(field_name, value=current_value, key=widget_key)
             elif props["type"] == "selectbox":
-                idx = props["options"].index(current_value) if current_value in props["options"] else 0
-                edited_value = st.selectbox(field_name, options=props["options"], index=idx, key=widget_key)
+                options = props["options"]
+                if current_value not in options:
+                    current_value = options[0] if options else ""
+                idx = options.index(current_value)
+                edited_value = st.selectbox(field_name, options=options, index=idx, key=widget_key)
             elif props["type"] == "date_input":
                 if isinstance(current_value, str):
-                    current_value = pd.to_datetime(current_value).date()
+                    try:
+                        current_value = pd.to_datetime(current_value).date()
+                    except ValueError:
+                        current_value = datetime.date.today()
                 elif not isinstance(current_value, datetime.date):
                     current_value = datetime.date.today()
-                edited_date = st.date_input(field_name, value=current_value, key=widget_key)
-                edited_value = str(edited_date)
+                edited_value = str(st.date_input(field_name, value=current_value, key=widget_key))
             else:
                 edited_value = current_value
 
@@ -75,13 +239,25 @@ class ExperimentReportManager:
                 changed = True
 
         return changed
-    
 
-    def display_custom_metadata(self, current_metadata, metadata_definitions, subdataset_key):
+    def display_custom_metadata(self, current_metadata_dict, predefined_fields_dict, unique_key_prefix):
+        """
+        Displays custom (non-predefined) metadata fields and allows editing or deletion.
+
+        Args:
+            current_metadata_dict (dict): Metadata dictionary containing both custom and predefined fields.
+            predefined_fields_dict (dict): Dictionary of predefined field names.
+            unique_key_prefix (str): Unique prefix for Streamlit widget keys.
+
+        Returns:
+            bool: True if any custom field was edited or deleted.
+        """
+
         changed = False
         deleted_keys = []
 
-        custom_fields = {k: v for k, v in current_metadata.items() if k not in metadata_definitions}
+        # Filter out predefined fields to get only custom
+        custom_fields = {k: v for k, v in current_metadata_dict.items() if k not in predefined_fields_dict}
 
         if custom_fields:
             st.write("---")
@@ -90,56 +266,110 @@ class ExperimentReportManager:
                 with cols[0]:
                     st.markdown(f"**{k}**")
                 with cols[1]:
-                    # new_value = st.text_input("Field Value", value=v, key=f"custom_{k}")
-                    new_value = st.text_input("Field Value", value=v, key=f"custom_{subdataset_key}_{k}")
+                    new_value = st.text_input(
+                        "Field Value",
+                        value=v,
+                        key=f"custom_value_{unique_key_prefix}_{self.safe_key(k)}"
+                    )
                     if new_value != v:
-                        current_metadata[k] = new_value
+                        current_metadata_dict[k] = new_value
                         changed = True
                 with cols[2]:
-                    # if st.button("🗑️", key=f"del_custom_{k}"):
-                    if st.button("🗑️", key=f"del_custom_{subdataset_key}_{k}"):
+                    if st.button("🗑️", key=f"del_custom_{unique_key_prefix}_{self.safe_key(k)}"):
                         deleted_keys.append(k)
 
-        if deleted_keys:
-            for k in deleted_keys:
-                del current_metadata[k]
-            if not current_metadata:
-                self.report_data["subdataset_metadata"].pop(subdataset_key, None)
-            self.save_json_file(self.report_data)
-            st.success("Deleted custom field(s).")
-            st.rerun()
+        # Delete keys outside loop to avoid runtime dict change errors
+        for k in deleted_keys:
+            if k in current_metadata_dict:
+                del current_metadata_dict[k]
+                changed = True
 
         return changed
 
+
     def add_custom_metadata_field(self, current_metadata, subdataset_key):
-        # with st.form("add_custom_field_form", clear_on_submit=True):
+        """
+        Adds a new custom metadata field through a Streamlit form.
+
+        Args:
+            current_metadata (dict): Dictionary where the new field will be added.
+            subdataset_key (str): Unique identifier for the current sub-dataset (used in widget keys).
+
+        Returns:
+            bool: True if a new field was successfully added.
+        """
+
+        added = False
         with st.form(f"add_custom_field_form_{subdataset_key}", clear_on_submit=True):
             new_name = st.text_input("New Field Name")
             new_value = st.text_input("New Field Value")
             submitted = st.form_submit_button("Add Field")
-        if submitted and new_name:
-            if new_name in current_metadata:
+
+        if submitted:
+            if not new_name.strip() or not new_value.strip():
+                st.error("Both field name and field value must be provided.")
+            elif new_name in current_metadata:
                 st.warning(f"Field '{new_name}' already exists.")
             else:
                 current_metadata[new_name] = new_value
-                self.save_json_file(self.report_data)
+                added = True
                 st.success(f"Added custom field: `{new_name}`")
-                st.rerun()
 
+        return added
+
+    @staticmethod
+    def safe_key(name):
+        """
+        Generates a Streamlit-safe key by replacing non-alphanumeric characters with underscores.
+
+        Args:
+            name (str): Original string to sanitize.
+
+        Returns:
+            str: Sanitized string safe for use as a widget key.
+        """
+
+        return re.sub(r'\W+', '_', name)
 
     # === PDF Generation ===
+
     def generate_pdf_report(self, all_subdatasets_data, experiment_metadata=None):
+        """
+        Generates a styled PDF report for an experiment, including metadata and dataset tables.
+
+        Args:
+            all_subdatasets_data (list): List of sub-dataset dicts, each containing:
+                - "metadata": dict of sub-dataset metadata
+                - "original_df": original pandas DataFrame
+                - "modified_df": modified pandas DataFrame
+                - "cell_groups": dict of group statistics and cells
+
+            experiment_metadata (dict, optional): Dictionary of general experiment-level metadata.
+
+        Returns:
+            str: File path to the generated PDF report.
+        """
+
+
         pdf_filepath = "/tmp/report.pdf"
 
         css = """
         <style>
         body { font-family: Arial, sans-serif; font-size: 10pt; }
         h1 { text-align: center; color: #333; page-break-after: avoid; }
-        h2, h3, h4 { color: #444; margin-top: 20px; page-break-after: avoid; } /* Added h4 for group titles */
+        h2, h3, h4 { color: #444; margin-top: 20px; page-break-after: avoid; }
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 9pt;
+            table-layout: fixed;
+            word-wrap: break-word;
+            page-break-inside: avoid;
+        }
+        table.dataframe {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7pt;
             table-layout: fixed;
             word-wrap: break-word;
             page-break-inside: avoid;
@@ -150,10 +380,13 @@ class ExperimentReportManager:
             text-align: left;
             word-break: break-word;
         }
+        td.number {
+            text-align: right;
+        }
         th {
             background-color: #f0f0f0;
         }
-        .highlight { /* This class is defined but not used in the current HTML generation logic. */
+        .highlight {
             background-color: #c8e6c9;
             font-weight: bold;
         }
@@ -161,38 +394,47 @@ class ExperimentReportManager:
         """
 
         html = f"<html><head>{css}</head><body><h1>Experiment Report</h1>"
-        
-        # This assumes you pass general metadata separately
+
+        # Experiment-wide metadata
         html += "<h2>Experiment Metadata</h2>"
         if experiment_metadata:
             for k, v in experiment_metadata.items():
                 html += f"<p><strong>{k}:</strong> {v}</p>"
-        
+        else:
+            html += "<p>No metadata provided.</p>"
+
         html += "<div style='page-break-after: always;'></div>"
 
+        # Sub-dataset sections
         for idx, sub in enumerate(all_subdatasets_data):
-            meta = sub["metadata"]
-            orig_df = sub["original_df"]
-            mod_df = sub["modified_df"]
-            groups = sub["cell_groups"]
-
             html += f"<h2>Sub-dataset {idx + 1}</h2>"
-            if meta:
-                for k, v in meta.items():
-                    html += f"<p><strong>{k}:</strong> {v}</p>"
+
+            sub_custom_meta = sub.get("metadata", {})
+            orig_df = sub.get("original_df")
+            mod_df = sub.get("modified_df")
+            groups = sub.get("cell_groups", {})
+
+            if sub_custom_meta:
+                html += "<h3>Sub-dataset Specific Metadata</h3><table>"
+                for k, v in sub_custom_meta.items():
+                    html += f"<tr><th>{k}</th><td>{v}</td></tr>"
+                html += "</table>"
+                html += "<div style='page-break-after: avoid;'></div>"
 
             html += f"<h3>Original Subdataset {idx + 1}</h3>"
-            html += orig_df.to_html(index=False, escape=False) if not orig_df.empty else "<p>No data.</p>"
+            html += orig_df.to_html(index=False, escape=False, classes='dataframe') if not orig_df.empty else "<p>No data.</p>"
 
             html += f"<h3>Modified Subdataset {idx + 1}</h3>"
-            html += mod_df.to_html(index=False, escape=False) if not mod_df.empty else "<p>No data.</p>"
+            html += mod_df.to_html(index=False, escape=False, classes='dataframe') if not mod_df.empty else "<p>No data.</p>"
 
             if groups:
                 for group, info in groups.items():
                     html += f"<h3>Group: {group}</h3>"
                     cells = info.get("cells", [])
-                    html += pd.DataFrame(cells).to_html(index=False, escape=False) if cells else "<p>No cell data.</p>"
                     stats = info.get("stats", {})
+
+                    html += pd.DataFrame(cells).to_html(index=False, escape=False) if cells else "<p>No cell data.</p>"
+
                     if "Error" in stats:
                         html += f"<p><strong>Error:</strong> {stats['Error']}</p>"
                     elif stats:
@@ -201,15 +443,9 @@ class ExperimentReportManager:
                 html += "<p>No cell groups defined.</p>"
 
             html += "<div style='page-break-after: always;'></div>"
+
         html += "</body></html>"
 
         HTML(string=html).write_pdf(pdf_filepath)
         return pdf_filepath
 
-
-
-############### vou ter de resolver isto
-############### rever o report_metadata_tracker.json pq não está a guardar direito
-############### o pdf gerado não está visivelmente igual ao template
-############### quero colocar Custom Fields entre os subdatasets
-############### ainda adicionar dar erro se colocado Custom Fields só título ou só "recheio"

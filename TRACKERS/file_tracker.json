@@ -7,22 +7,9 @@
             "created": "2025-06-30T14:11:27.128510",
             "last_modified": "2025-04-14T19:09:57.672994"
         },
-        "note": "foi de segunda, m\u00e1 contagem",
-        "creation_date": "2025-06-30T16:11:54.802336",
-        "last_modified": "2025-06-30T16:11:58.019804",
-        "is_experiment": true
-    },
-    "/home/angelina/Desktop/final_LabReport/tests/artifacts/20230301_PB_triton_2.xlsx": {
-        "filepath": "/home/angelina/Desktop/final_LabReport/tests/artifacts/20230301_PB_triton_2.xlsx",
-        "name": "20230301_PB_triton_2.xlsx",
-        "metadata": {
-            "size_kb": 12.1416015625,
-            "created": "2025-06-30T14:11:27.108510",
-            "last_modified": "2025-04-14T19:09:57.657997"
-        },
-        "note": "acompanhamento da Joana, est\u00e1 a melhorar",
-        "creation_date": "2025-07-01T19:50:15.930654",
-        "last_modified": "2025-07-01T19:50:26.043057",
+        "note": "PB viability assay performed on A549 cells at 24h and 48h post-exposure. 6 concentrations tested in triplicate. Unexpected dip at 10 \u00b5g/mL \u2013 possible pipetting error. Retest scheduled.",
+        "creation_date": "2025-07-31T18:54:17.669866",
+        "last_modified": "2025-07-31T18:54:22.249126",
         "is_experiment": true
     }
 }

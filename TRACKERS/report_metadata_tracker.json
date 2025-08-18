@@ -2,21 +2,13 @@
     "/home/angelina/Desktop/final_LabReport/tests/20230308_PB triton seed 06.03.xlsx":{
         "general_metadata":{
             "Plate Type":"96 wells",
-            "Timepoint":"",
+            "Timepoint":"24h and 48h",
             "Experiment Type":"PrestoBlue",
-            "Test Item":"",
-            "Test System":"",
-            "Seeding Date":"2025-07-04",
-            "Passage of the Used Subject":"",
-            "Analysis Date":"2025-07-04",
-            "Plate Dilution Factor":"",
-            "e":"e"
-        },
-        "subdataset_metadata":{
-            "0":{},
-            "1":{
-                "e":"e"
-            }
+            "Test Item":"SDS",
+            "Test System":"A549",
+            "Seeding Date":"2025-08-13",
+            "Passage of the Used Subject":"3",
+            "Analysis Date":"2023-04-28"
         }
     }
 }
