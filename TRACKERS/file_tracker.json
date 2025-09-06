@@ -11,5 +11,31 @@
         "creation_date": "2025-07-31T18:54:17.669866",
         "last_modified": "2025-07-31T18:54:22.249126",
         "is_experiment": true
+    },
+    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230224_triton_VVB.xlsx": {
+        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230224_triton_VVB.xlsx",
+        "name": "20230224_triton_VVB.xlsx",
+        "metadata": {
+            "size_kb": 104.9931640625,
+            "created": "2023-05-12T09:58:39.300839",
+            "last_modified": "2023-05-12T09:58:39.300839"
+        },
+        "note": "",
+        "creation_date": "2025-09-06T22:22:33.959168",
+        "last_modified": "2025-09-06T22:23:00.789681",
+        "is_experiment": false
+    },
+    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230301_PB_triton_2.xlsx": {
+        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230301_PB_triton_2.xlsx",
+        "name": "20230301_PB_triton_2.xlsx",
+        "metadata": {
+            "size_kb": 12.1416015625,
+            "created": "2023-05-12T09:58:39.300839",
+            "last_modified": "2023-05-12T09:58:39.300839"
+        },
+        "note": "",
+        "creation_date": "2025-09-06T22:23:18.574640",
+        "last_modified": "2025-09-06T22:23:35.000938",
+        "is_experiment": true
     }
 }

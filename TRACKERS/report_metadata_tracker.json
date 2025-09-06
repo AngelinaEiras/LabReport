@@ -10,5 +10,17 @@
             "Passage of the Used Subject":"3",
             "Analysis Date":"2023-04-28"
         }
+    },
+    "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230301_PB_triton_2.xlsx":{
+        "general_metadata":{
+            "Plate Type":"96 wells",
+            "Timepoint":"",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"",
+            "Test System":"",
+            "Seeding Date":"2025-09-06",
+            "Passage of the Used Subject":"",
+            "Analysis Date":"2025-09-06"
+        }
     }
 }

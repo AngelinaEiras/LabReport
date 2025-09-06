@@ -32,8 +32,9 @@ class Editor:
         self.file_data = self.load_tracker()
 
         # Load main experiment list into session state if not already present
-        if "experiments_list" not in st.session_state:
-            self.load_experiment_list()
+        # if "experiments_list" not in st.session_state:
+        #     self.load_experiment_list()
+        self.load_experiment_list()
 
     # === Tracker Handling ===
     def save_tracker(self):
