@@ -1,0 +1,868 @@
+
+já está preenchida e pode ser usada como exemplo, no editor_file_tracker. atenção às vírgulas entre entries 
+    "/home/angelina/Desktop/final_LabReport/tests/20230308_PB triton seed 06.03.xlsx":{
+        "plate_type":"96 wells",
+        "0":{
+            "index_subdataset":[
+                {
+                    "letras":"A",
+                    "24h_control_a":4.0,
+                    "24h_control_b":0.0,
+                    "24h_control_c":4.0,
+                    "24h_10 µg/mL_a":0.0,
+                    "24h_10 µg/mL_b":0.0,
+                    "24h_10 µg/mL_c":5.0,
+                    "24h_20 µg/mL_a":2.0,
+                    "24h_20 µg/mL_b":4.0,
+                    "24h_20 µg/mL_c":0.0,
+                    "24h_30 µg/mL_a":7.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"B",
+                    "24h_control_a":1384.0,
+                    "24h_control_b":35327.0,
+                    "24h_control_c":35508.0,
+                    "24h_10 µg/mL_a":39986.0,
+                    "24h_10 µg/mL_b":29729.0,
+                    "24h_10 µg/mL_c":17021.0,
+                    "24h_20 µg/mL_a":5063.0,
+                    "24h_20 µg/mL_b":1610.0,
+                    "24h_20 µg/mL_c":1871.0,
+                    "24h_30 µg/mL_a":27033.0,
+                    "24h_30 µg/mL_b":28286.0,
+                    "24h_30 µg/mL_c":5.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"C",
+                    "24h_control_a":1521.0,
+                    "24h_control_b":31624.0,
+                    "24h_control_c":28011.0,
+                    "24h_10 µg/mL_a":30115.0,
+                    "24h_10 µg/mL_b":33058.0,
+                    "24h_10 µg/mL_c":14007.0,
+                    "24h_20 µg/mL_a":6704.0,
+                    "24h_20 µg/mL_b":1152.0,
+                    "24h_20 µg/mL_c":1670.0,
+                    "24h_30 µg/mL_a":30203.0,
+                    "24h_30 µg/mL_b":35439.0,
+                    "24h_30 µg/mL_c":14.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"D",
+                    "24h_control_a":1338.0,
+                    "24h_control_b":22515.0,
+                    "24h_control_c":26090.0,
+                    "24h_10 µg/mL_a":25368.0,
+                    "24h_10 µg/mL_b":20395.0,
+                    "24h_10 µg/mL_c":11738.0,
+                    "24h_20 µg/mL_a":7214.0,
+                    "24h_20 µg/mL_b":1518.0,
+                    "24h_20 µg/mL_c":1369.0,
+                    "24h_30 µg/mL_a":26935.0,
+                    "24h_30 µg/mL_b":29273.0,
+                    "24h_30 µg/mL_c":5.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"E",
+                    "24h_control_a":0.0,
+                    "24h_control_b":5.0,
+                    "24h_control_c":4.0,
+                    "24h_10 µg/mL_a":14.0,
+                    "24h_10 µg/mL_b":3.0,
+                    "24h_10 µg/mL_c":12.0,
+                    "24h_20 µg/mL_a":2.0,
+                    "24h_20 µg/mL_b":1.0,
+                    "24h_20 µg/mL_c":6.0,
+                    "24h_30 µg/mL_a":3.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"F",
+                    "24h_control_a":12.0,
+                    "24h_control_b":0.0,
+                    "24h_control_c":0.0,
+                    "24h_10 µg/mL_a":13.0,
+                    "24h_10 µg/mL_b":14.0,
+                    "24h_10 µg/mL_c":15.0,
+                    "24h_20 µg/mL_a":12.0,
+                    "24h_20 µg/mL_b":10.0,
+                    "24h_20 µg/mL_c":11.0,
+                    "24h_30 µg/mL_a":4.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":2.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"G",
+                    "24h_control_a":NaN,
+                    "24h_control_b":NaN,
+                    "24h_control_c":NaN,
+                    "24h_10 µg/mL_a":NaN,
+                    "24h_10 µg/mL_b":NaN,
+                    "24h_10 µg/mL_c":NaN,
+                    "24h_20 µg/mL_a":NaN,
+                    "24h_20 µg/mL_b":NaN,
+                    "24h_20 µg/mL_c":NaN,
+                    "24h_30 µg/mL_a":NaN,
+                    "24h_30 µg/mL_b":NaN,
+                    "24h_30 µg/mL_c":NaN,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"H",
+                    "24h_control_a":NaN,
+                    "24h_control_b":NaN,
+                    "24h_control_c":NaN,
+                    "24h_10 µg/mL_a":NaN,
+                    "24h_10 µg/mL_b":NaN,
+                    "24h_10 µg/mL_c":NaN,
+                    "24h_20 µg/mL_a":NaN,
+                    "24h_20 µg/mL_b":NaN,
+                    "24h_20 µg/mL_c":NaN,
+                    "24h_30 µg/mL_a":NaN,
+                    "24h_30 µg/mL_b":NaN,
+                    "24h_30 µg/mL_c":NaN,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ],
+            "cell_groups":{
+                "24h_controlo":{
+                    "cells":[
+                        {
+                            "value":4.0,
+                            "row":"A",
+                            "column":"24h_control_a"
+                        },
+                        {
+                            "value":1384.0,
+                            "row":"B",
+                            "column":"24h_control_a"
+                        },
+                        {
+                            "value":1521.0,
+                            "row":"C",
+                            "column":"24h_control_a"
+                        },
+                        {
+                            "value":1338.0,
+                            "row":"D",
+                            "column":"24h_control_a"
+                        },
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_control_b"
+                        },
+                        {
+                            "value":35327.0,
+                            "row":"B",
+                            "column":"24h_control_b"
+                        },
+                        {
+                            "value":31624.0,
+                            "row":"C",
+                            "column":"24h_control_b"
+                        },
+                        {
+                            "value":22515.0,
+                            "row":"D",
+                            "column":"24h_control_b"
+                        },
+                        {
+                            "value":4.0,
+                            "row":"A",
+                            "column":"24h_control_c"
+                        },
+                        {
+                            "value":35508.0,
+                            "row":"B",
+                            "column":"24h_control_c"
+                        },
+                        {
+                            "value":28011.0,
+                            "row":"C",
+                            "column":"24h_control_c"
+                        },
+                        {
+                            "value":26090.0,
+                            "row":"D",
+                            "column":"24h_control_c"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":15277.166666666666,
+                        "Standard Deviation":15627.595440195662,
+                        "Coefficient of Variation":1.0229380736084785,
+                        "Min":0.0,
+                        "Max":35508.0
+                    }
+                },
+                "24h_10":{
+                    "cells":[
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_10 µg/mL_a"
+                        },
+                        {
+                            "value":39986.0,
+                            "row":"B",
+                            "column":"24h_10 µg/mL_a"
+                        },
+                        {
+                            "value":30115.0,
+                            "row":"C",
+                            "column":"24h_10 µg/mL_a"
+                        },
+                        {
+                            "value":25368.0,
+                            "row":"D",
+                            "column":"24h_10 µg/mL_a"
+                        },
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_10 µg/mL_b"
+                        },
+                        {
+                            "value":29729.0,
+                            "row":"B",
+                            "column":"24h_10 µg/mL_b"
+                        },
+                        {
+                            "value":33058.0,
+                            "row":"C",
+                            "column":"24h_10 µg/mL_b"
+                        },
+                        {
+                            "value":20395.0,
+                            "row":"D",
+                            "column":"24h_10 µg/mL_b"
+                        },
+                        {
+                            "value":5.0,
+                            "row":"A",
+                            "column":"24h_10 µg/mL_c"
+                        },
+                        {
+                            "value":17021.0,
+                            "row":"B",
+                            "column":"24h_10 µg/mL_c"
+                        },
+                        {
+                            "value":14007.0,
+                            "row":"C",
+                            "column":"24h_10 µg/mL_c"
+                        },
+                        {
+                            "value":11738.0,
+                            "row":"D",
+                            "column":"24h_10 µg/mL_c"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":18451.833333333332,
+                        "Standard Deviation":13750.963581663738,
+                        "Coefficient of Variation":0.7452356269023171,
+                        "Min":0.0,
+                        "Max":39986.0
+                    }
+                },
+                "24h_20 µg/mL":{
+                    "cells":[
+                        {
+                            "value":2.0,
+                            "row":"A",
+                            "column":"24h_20 µg/mL_a"
+                        },
+                        {
+                            "value":5063.0,
+                            "row":"B",
+                            "column":"24h_20 µg/mL_a"
+                        },
+                        {
+                            "value":6704.0,
+                            "row":"C",
+                            "column":"24h_20 µg/mL_a"
+                        },
+                        {
+                            "value":7214.0,
+                            "row":"D",
+                            "column":"24h_20 µg/mL_a"
+                        },
+                        {
+                            "value":4.0,
+                            "row":"A",
+                            "column":"24h_20 µg/mL_b"
+                        },
+                        {
+                            "value":1610.0,
+                            "row":"B",
+                            "column":"24h_20 µg/mL_b"
+                        },
+                        {
+                            "value":1152.0,
+                            "row":"C",
+                            "column":"24h_20 µg/mL_b"
+                        },
+                        {
+                            "value":1518.0,
+                            "row":"D",
+                            "column":"24h_20 µg/mL_b"
+                        },
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_20 µg/mL_c"
+                        },
+                        {
+                            "value":1871.0,
+                            "row":"B",
+                            "column":"24h_20 µg/mL_c"
+                        },
+                        {
+                            "value":1670.0,
+                            "row":"C",
+                            "column":"24h_20 µg/mL_c"
+                        },
+                        {
+                            "value":1369.0,
+                            "row":"D",
+                            "column":"24h_20 µg/mL_c"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":2348.0833333333335,
+                        "Standard Deviation":2537.799456878603,
+                        "Coefficient of Variation":1.0807961629180975,
+                        "Min":0.0,
+                        "Max":7214.0
+                    }
+                },
+                "24h_30 µg/mL":{
+                    "cells":[
+                        {
+                            "value":7.0,
+                            "row":"A",
+                            "column":"24h_30 µg/mL_a"
+                        },
+                        {
+                            "value":27033.0,
+                            "row":"B",
+                            "column":"24h_30 µg/mL_a"
+                        },
+                        {
+                            "value":30203.0,
+                            "row":"C",
+                            "column":"24h_30 µg/mL_a"
+                        },
+                        {
+                            "value":26935.0,
+                            "row":"D",
+                            "column":"24h_30 µg/mL_a"
+                        },
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_30 µg/mL_b"
+                        },
+                        {
+                            "value":28286.0,
+                            "row":"B",
+                            "column":"24h_30 µg/mL_b"
+                        },
+                        {
+                            "value":35439.0,
+                            "row":"C",
+                            "column":"24h_30 µg/mL_b"
+                        },
+                        {
+                            "value":29273.0,
+                            "row":"D",
+                            "column":"24h_30 µg/mL_b"
+                        },
+                        {
+                            "value":0.0,
+                            "row":"A",
+                            "column":"24h_30 µg/mL_c"
+                        },
+                        {
+                            "value":5.0,
+                            "row":"B",
+                            "column":"24h_30 µg/mL_c"
+                        },
+                        {
+                            "value":14.0,
+                            "row":"C",
+                            "column":"24h_30 µg/mL_c"
+                        },
+                        {
+                            "value":5.0,
+                            "row":"D",
+                            "column":"24h_30 µg/mL_c"
+                        }
+                    ],
+                    "stats":{
+                        "Mean":14766.666666666666,
+                        "Standard Deviation":15564.454055976586,
+                        "Coefficient of Variation":1.0540262340390465,
+                        "Min":0.0,
+                        "Max":35439.0
+                    }
+                }
+            },
+            "others":"",
+            "renamed_columns":{
+                "letras":"letras",
+                "24h_control_a":"24h_control_a",
+                "24h_control_b":"24h_control_b",
+                "24h_control_c":"24h_control_c",
+                "24h_10 µg/mL_a":"24h_10 µg/mL_a",
+                "24h_10 µg/mL_b":"24h_10 µg/mL_b",
+                "24h_10 µg/mL_c":"24h_10 µg/mL_c",
+                "24h_20 µg/mL_a":"24h_20 µg/mL_a",
+                "24h_20 µg/mL_b":"24h_20 µg/mL_b",
+                "24h_20 µg/mL_c":"24h_20 µg/mL_c",
+                "24h_30 µg/mL_a":"24h_30 µg/mL_a",
+                "24h_30 µg/mL_b":"24h_30 µg/mL_b",
+                "24h_30 µg/mL_c":"24h_30 µg/mL_c",
+                "Unnamed: 13":"Unnamed: 13",
+                "Unnamed: 14":"Unnamed: 14"
+            },
+            "index_subdataset_original":[
+                {
+                    "letras":"A",
+                    "24h_control_a":4.0,
+                    "24h_control_b":0.0,
+                    "24h_control_c":4.0,
+                    "24h_10 µg/mL_a":0.0,
+                    "24h_10 µg/mL_b":0.0,
+                    "24h_10 µg/mL_c":5.0,
+                    "24h_20 µg/mL_a":2.0,
+                    "24h_20 µg/mL_b":4.0,
+                    "24h_20 µg/mL_c":0.0,
+                    "24h_30 µg/mL_a":7.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"B",
+                    "24h_control_a":1384.0,
+                    "24h_control_b":35327.0,
+                    "24h_control_c":35508.0,
+                    "24h_10 µg/mL_a":39986.0,
+                    "24h_10 µg/mL_b":29729.0,
+                    "24h_10 µg/mL_c":17021.0,
+                    "24h_20 µg/mL_a":5063.0,
+                    "24h_20 µg/mL_b":1610.0,
+                    "24h_20 µg/mL_c":1871.0,
+                    "24h_30 µg/mL_a":27033.0,
+                    "24h_30 µg/mL_b":28286.0,
+                    "24h_30 µg/mL_c":5.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"C",
+                    "24h_control_a":1521.0,
+                    "24h_control_b":31624.0,
+                    "24h_control_c":28011.0,
+                    "24h_10 µg/mL_a":30115.0,
+                    "24h_10 µg/mL_b":33058.0,
+                    "24h_10 µg/mL_c":14007.0,
+                    "24h_20 µg/mL_a":6704.0,
+                    "24h_20 µg/mL_b":1152.0,
+                    "24h_20 µg/mL_c":1670.0,
+                    "24h_30 µg/mL_a":30203.0,
+                    "24h_30 µg/mL_b":35439.0,
+                    "24h_30 µg/mL_c":14.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"D",
+                    "24h_control_a":1338.0,
+                    "24h_control_b":22515.0,
+                    "24h_control_c":26090.0,
+                    "24h_10 µg/mL_a":25368.0,
+                    "24h_10 µg/mL_b":20395.0,
+                    "24h_10 µg/mL_c":11738.0,
+                    "24h_20 µg/mL_a":7214.0,
+                    "24h_20 µg/mL_b":1518.0,
+                    "24h_20 µg/mL_c":1369.0,
+                    "24h_30 µg/mL_a":26935.0,
+                    "24h_30 µg/mL_b":29273.0,
+                    "24h_30 µg/mL_c":5.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"E",
+                    "24h_control_a":0.0,
+                    "24h_control_b":5.0,
+                    "24h_control_c":4.0,
+                    "24h_10 µg/mL_a":14.0,
+                    "24h_10 µg/mL_b":3.0,
+                    "24h_10 µg/mL_c":12.0,
+                    "24h_20 µg/mL_a":2.0,
+                    "24h_20 µg/mL_b":1.0,
+                    "24h_20 µg/mL_c":6.0,
+                    "24h_30 µg/mL_a":3.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"F",
+                    "24h_control_a":12.0,
+                    "24h_control_b":0.0,
+                    "24h_control_c":0.0,
+                    "24h_10 µg/mL_a":13.0,
+                    "24h_10 µg/mL_b":14.0,
+                    "24h_10 µg/mL_c":15.0,
+                    "24h_20 µg/mL_a":12.0,
+                    "24h_20 µg/mL_b":10.0,
+                    "24h_20 µg/mL_c":11.0,
+                    "24h_30 µg/mL_a":4.0,
+                    "24h_30 µg/mL_b":0.0,
+                    "24h_30 µg/mL_c":2.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"G",
+                    "24h_control_a":NaN,
+                    "24h_control_b":NaN,
+                    "24h_control_c":NaN,
+                    "24h_10 µg/mL_a":NaN,
+                    "24h_10 µg/mL_b":NaN,
+                    "24h_10 µg/mL_c":NaN,
+                    "24h_20 µg/mL_a":NaN,
+                    "24h_20 µg/mL_b":NaN,
+                    "24h_20 µg/mL_c":NaN,
+                    "24h_30 µg/mL_a":NaN,
+                    "24h_30 µg/mL_b":NaN,
+                    "24h_30 µg/mL_c":NaN,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "letras":"H",
+                    "24h_control_a":NaN,
+                    "24h_control_b":NaN,
+                    "24h_control_c":NaN,
+                    "24h_10 µg/mL_a":NaN,
+                    "24h_10 µg/mL_b":NaN,
+                    "24h_10 µg/mL_c":NaN,
+                    "24h_20 µg/mL_a":NaN,
+                    "24h_20 µg/mL_b":NaN,
+                    "24h_20 µg/mL_c":NaN,
+                    "24h_30 µg/mL_a":NaN,
+                    "24h_30 µg/mL_b":NaN,
+                    "24h_30 µg/mL_c":NaN,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ]
+        },
+        "1":{
+            "index_subdataset":[
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"A",
+                    "Unnamed: 1":11,
+                    "Unnamed: 2":13.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":0.0,
+                    "Unnamed: 8":0.0,
+                    "Unnamed: 9":0.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":14,
+                    "Unnamed: 12":3.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"B",
+                    "Unnamed: 1":2129,
+                    "Unnamed: 2":57794.0,
+                    "Unnamed: 3":56365.0,
+                    "Unnamed: 4":63107.0,
+                    "Unnamed: 5":53282.0,
+                    "Unnamed: 6":42102.0,
+                    "A549 P10 10k/poço 6/3 AE":11408.0,
+                    "Unnamed: 8":2577.0,
+                    "Unnamed: 9":2475.0,
+                    "Unnamed: 10":45924.0,
+                    "Unnamed: 11":47802,
+                    "Unnamed: 12":20.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"C",
+                    "Unnamed: 1":2134,
+                    "Unnamed: 2":60499.0,
+                    "Unnamed: 3":63196.0,
+                    "Unnamed: 4":57014.0,
+                    "Unnamed: 5":56476.0,
+                    "Unnamed: 6":23602.0,
+                    "A549 P10 10k/poço 6/3 AE":17614.0,
+                    "Unnamed: 8":2669.0,
+                    "Unnamed: 9":2451.0,
+                    "Unnamed: 10":55364.0,
+                    "Unnamed: 11":53261,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"D",
+                    "Unnamed: 1":2127,
+                    "Unnamed: 2":53721.0,
+                    "Unnamed: 3":60310.0,
+                    "Unnamed: 4":52580.0,
+                    "Unnamed: 5":49209.0,
+                    "Unnamed: 6":18496.0,
+                    "A549 P10 10k/poço 6/3 AE":12069.0,
+                    "Unnamed: 8":2597.0,
+                    "Unnamed: 9":2460.0,
+                    "Unnamed: 10":56028.0,
+                    "Unnamed: 11":48803,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"E",
+                    "Unnamed: 1":4,
+                    "Unnamed: 2":9.0,
+                    "Unnamed: 3":8.0,
+                    "Unnamed: 4":5.0,
+                    "Unnamed: 5":5.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":3.0,
+                    "Unnamed: 8":5.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":9.0,
+                    "Unnamed: 11":10,
+                    "Unnamed: 12":4.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"F",
+                    "Unnamed: 1":7,
+                    "Unnamed: 2":4.0,
+                    "Unnamed: 3":29.0,
+                    "Unnamed: 4":6.0,
+                    "Unnamed: 5":17.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":7.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":10.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":4,
+                    "Unnamed: 12":10.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"G",
+                    "Unnamed: 1":1,
+                    "Unnamed: 2":12.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":2.0,
+                    "Unnamed: 6":7.0,
+                    "A549 P10 10k/poço 6/3 AE":19.0,
+                    "Unnamed: 8":7.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":16.0,
+                    "Unnamed: 11":17,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"H",
+                    "Unnamed: 1":9,
+                    "Unnamed: 2":0.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":16.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":20.0,
+                    "A549 P10 10k/poço 6/3 AE":13.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":17.0,
+                    "Unnamed: 10":22.0,
+                    "Unnamed: 11":7,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ],
+            "index_subdataset_original":[
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"A",
+                    "Unnamed: 1":11,
+                    "Unnamed: 2":13.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":0.0,
+                    "Unnamed: 8":0.0,
+                    "Unnamed: 9":0.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":14,
+                    "Unnamed: 12":3.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"B",
+                    "Unnamed: 1":2129,
+                    "Unnamed: 2":57794.0,
+                    "Unnamed: 3":56365.0,
+                    "Unnamed: 4":63107.0,
+                    "Unnamed: 5":53282.0,
+                    "Unnamed: 6":42102.0,
+                    "A549 P10 10k/poço 6/3 AE":11408.0,
+                    "Unnamed: 8":2577.0,
+                    "Unnamed: 9":2475.0,
+                    "Unnamed: 10":45924.0,
+                    "Unnamed: 11":47802,
+                    "Unnamed: 12":20.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"C",
+                    "Unnamed: 1":2134,
+                    "Unnamed: 2":60499.0,
+                    "Unnamed: 3":63196.0,
+                    "Unnamed: 4":57014.0,
+                    "Unnamed: 5":56476.0,
+                    "Unnamed: 6":23602.0,
+                    "A549 P10 10k/poço 6/3 AE":17614.0,
+                    "Unnamed: 8":2669.0,
+                    "Unnamed: 9":2451.0,
+                    "Unnamed: 10":55364.0,
+                    "Unnamed: 11":53261,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"D",
+                    "Unnamed: 1":2127,
+                    "Unnamed: 2":53721.0,
+                    "Unnamed: 3":60310.0,
+                    "Unnamed: 4":52580.0,
+                    "Unnamed: 5":49209.0,
+                    "Unnamed: 6":18496.0,
+                    "A549 P10 10k/poço 6/3 AE":12069.0,
+                    "Unnamed: 8":2597.0,
+                    "Unnamed: 9":2460.0,
+                    "Unnamed: 10":56028.0,
+                    "Unnamed: 11":48803,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"E",
+                    "Unnamed: 1":4,
+                    "Unnamed: 2":9.0,
+                    "Unnamed: 3":8.0,
+                    "Unnamed: 4":5.0,
+                    "Unnamed: 5":5.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":3.0,
+                    "Unnamed: 8":5.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":9.0,
+                    "Unnamed: 11":10,
+                    "Unnamed: 12":4.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"F",
+                    "Unnamed: 1":7,
+                    "Unnamed: 2":4.0,
+                    "Unnamed: 3":29.0,
+                    "Unnamed: 4":6.0,
+                    "Unnamed: 5":17.0,
+                    "Unnamed: 6":0.0,
+                    "A549 P10 10k/poço 6/3 AE":7.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":10.0,
+                    "Unnamed: 10":2.0,
+                    "Unnamed: 11":4,
+                    "Unnamed: 12":10.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"G",
+                    "Unnamed: 1":1,
+                    "Unnamed: 2":12.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":0.0,
+                    "Unnamed: 5":2.0,
+                    "Unnamed: 6":7.0,
+                    "A549 P10 10k/poço 6/3 AE":19.0,
+                    "Unnamed: 8":7.0,
+                    "Unnamed: 9":8.0,
+                    "Unnamed: 10":16.0,
+                    "Unnamed: 11":17,
+                    "Unnamed: 12":0.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                },
+                {
+                    "seed 6/3/2023 - 2 placas de 96 poços com 10k células por poço":"H",
+                    "Unnamed: 1":9,
+                    "Unnamed: 2":0.0,
+                    "Unnamed: 3":0.0,
+                    "Unnamed: 4":16.0,
+                    "Unnamed: 5":0.0,
+                    "Unnamed: 6":20.0,
+                    "A549 P10 10k/poço 6/3 AE":13.0,
+                    "Unnamed: 8":3.0,
+                    "Unnamed: 9":17.0,
+                    "Unnamed: 10":22.0,
+                    "Unnamed: 11":7,
+                    "Unnamed: 12":9.0,
+                    "Unnamed: 13":560590.0,
+                    "Unnamed: 14":NaN
+                }
+            ],
+            "cell_groups":{},
+            "others":"",
+            "renamed_columns":{}
+        }
+    }

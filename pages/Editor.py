@@ -1,6 +1,39 @@
 import streamlit as st
+import json
+import base64
 # Import the Editor class that contains the main experiment editor logic
 from src.models.editorial import Editor
+
+
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+img_base64 = get_base64_image("images/logo9.png")
+
+def add_logo():
+    st.markdown(
+        f"""
+        <style>
+            [data-testid="stSidebarNav"] {{
+                background-image: url("data:image/png;base64,{img_base64}");
+                background-repeat: no-repeat;
+                background-size: 350px auto;
+                padding-top:250px;
+                background-position: 0px 0px;
+            }}
+            [data-testid="stSidebarNav"]::before {{
+                content: "Experiments Editor";
+                margin-left: 20px;
+                margin-top: 20px;
+                font-size: 30px;
+                position: relative;
+                top: 0px;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Set the page configuration before rendering anything
 st.set_page_config(
@@ -9,22 +42,25 @@ st.set_page_config(
     initial_sidebar_state="expanded" # Sidebar is open by default
 )
 
-cols = st.columns([2, 10, 10])
-with cols[0]:
-    if st.button("Refresh"):
-        st.rerun()
-with cols[1]:
-    st.info("If the selected file doesn't load automatically, click 'Refresh' to update the page.")
 
-def main():
-    """
-    Entry point for the Streamlit app.
-    Creates an instance of the Editor class and runs its main method.
-    """
-    editor = Editor()  # Initialize the Editor class
-    editor.run()       # Run the editor interface
+# --- Enhanced Sidebar Content ---
+with st.sidebar:
+    add_logo()
+    # st.header("File Visualizer and Editor")
+    # st.markdown("---")
+    st.subheader("App Info")
+    st.markdown("Version: `1.0.0`")
 
-# This block ensures that the main() function is called
-# only when this script is run directly, not when imported
-if __name__ == "__main__":
-    main()
+
+st.header("Manage editions and data visualization")  # Main title
+
+
+with open("TRACKERS/file_tracker.json") as f:
+    tracker_data = json.load(f)
+
+st.session_state.experiments_list = [
+    path for path, info in tracker_data.items() if info.get("is_experiment", False)
+]
+
+editor = Editor()  # Initialize the Editor class
+editor.run()       # Run the editor interface

@@ -2,25 +2,24 @@
     "/home/angelina/Desktop/final_LabReport/tests/20230308_PB triton seed 06.03.xlsx":{
         "general_metadata":{
             "Plate Type":"96 wells",
-            "Timepoint":"24h and 48h",
+            "Timepoint":" measurement occurred at 12h and 24h",
             "Experiment Type":"PrestoBlue",
-            "Test Item":"SDS",
+            "Test Item":"Triton X-100",
             "Test System":"A549",
-            "Seeding Date":"2025-08-13",
-            "Passage of the Used Subject":"3",
-            "Analysis Date":"2023-04-28"
-        }
-    },
-    "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230301_PB_triton_2.xlsx":{
-        "general_metadata":{
-            "Plate Type":"96 wells",
-            "Timepoint":"",
-            "Experiment Type":"PrestoBlue",
-            "Test Item":"",
-            "Test System":"",
-            "Seeding Date":"2025-09-06",
-            "Passage of the Used Subject":"",
-            "Analysis Date":"2025-09-06"
+            "Seeding density":"10000 cells/well",
+            "Seeding Date":"2023-03-08",
+            "Analysis Date":"2025-10-19",
+            "Passage of the Used Test System":"5",
+            "Cell Culture":"A549 cells were cultured in culture flasks with FK12 Kaighn's medium.",
+            "Incubator Settings":"Temperature: 37°C; CO₂: 5%; Humidity: 95%"
+        },
+        "subdataset_metadata":{
+            "0":{
+                "About the observed cell viability":"Cell viability was inconsistent with what was expected at 12 hours, with high variability between replicates."
+            },
+            "1":{
+                "About the observed cell viability":"Cell viability was inconsistent with what was expected at 24 hours, with high variability between replicates."
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import json
 from weasyprint import HTML
 import datetime
 import re
+import html as _html
 
 
 class ExperimentReportManager:
@@ -177,6 +178,98 @@ class ExperimentReportManager:
 
         return selected_experiment
 
+
+    def _escape_html(self,s: str) -> str:
+        return _html.escape(s)
+
+
+    def generate_highlighted_html_table(self, base_df, groups):
+        """
+        Builds an HTML table from a DataFrame with certain cells highlighted
+        based on the group information.
+
+        Args:
+            base_df (pd.DataFrame): The DataFrame to render.
+            groups (dict): Group definitions, where each group has:
+                - 'color': str (hex color)
+                - 'cells': list of {'row': <row_label>, 'column': <column_label>} dicts
+
+        Returns:
+            str: HTML string of the highlighted table.
+        """
+
+        if base_df is None or base_df.empty:
+            return "<p>No data available.</p>"
+
+        try:
+            base_df = base_df.reset_index(drop=True).copy()
+            highlight_map = {}  # (row_idx:int, col_label:str) -> color hex
+
+            for gname, ginfo in groups.items():
+                color = ginfo.get("color", "#FFDDAA")
+                for cell in ginfo.get("cells", []):
+                    row_label = cell.get("row")
+                    col_label = cell.get("column")
+                    if row_label is None or col_label is None:
+                        continue
+                    try:
+                        # Convert row label
+                        if isinstance(row_label, int):
+                            r_idx = int(row_label)
+                        else:
+                            r_label_str = str(row_label).strip()
+                            if len(r_label_str) == 1 and r_label_str.isalpha():
+                                r_idx = ord(r_label_str.upper()) - 65
+                            else:
+                                if r_label_str in base_df.index.astype(str).tolist():
+                                    r_idx = int(base_df.index.astype(str).tolist().index(r_label_str))
+                                else:
+                                    try:
+                                        r_idx = int(r_label_str)
+                                    except Exception:
+                                        continue
+
+                        # Match column name
+                        c_label = str(col_label).strip()
+                        matching_cols = [c for c in map(str, base_df.columns) if c.strip() == c_label]
+                        if not matching_cols:
+                            matching_cols = [c for c in map(str, base_df.columns) if c_label in c]
+
+                        if matching_cols and 0 <= r_idx < len(base_df):
+                            col_actual = matching_cols[0]
+                            highlight_map[(r_idx, col_actual)] = color
+                    except Exception:
+                        continue
+
+            # Build HTML table manually
+            table_html = "<table class='dataframe'><thead><tr>"
+            for col in base_df.columns:
+                table_html += f"<th>{self._escape_html(str(col))}</th>"
+            table_html += "</tr></thead><tbody>"
+
+            for i, row in base_df.iterrows():
+                table_html += "<tr>"
+                for col in base_df.columns:
+                    cell_value = row[col]
+                    cell_text = self._escape_html("" if pd.isna(cell_value) else str(cell_value))
+                    if cell_text == "":
+                        cell_text = "&nbsp;"  # render empty cell visibly
+
+                    if (i, str(col)) in highlight_map:
+                        color = highlight_map[(i, str(col))]
+                        table_html += f"<td><span style='background-color:{color};'>{cell_text}</span></td>"
+                    else:
+                        table_html += f"<td>{cell_text}</td>"
+                table_html += "</tr>"
+
+            table_html += "</tbody></table>"
+
+            return table_html
+
+        except Exception as e:
+            return f"<p style='color:red;'>Error generating highlighted table: {e}</p>"
+
+
     def show_dataframe(self, title, data):
         """
         Displays a pandas DataFrame inside a Streamlit expander.
@@ -208,35 +301,43 @@ class ExperimentReportManager:
             bool: True if any field was changed, False otherwise.
         """
 
+        cols = [c for c in st.columns(3)]
         changed = False
+        col=0
         for field_name, props in metadata_definitions.items():
-            current_value = current_metadata.get(field_name, props.get("default_source", ""))
-            widget_key = f"general_meta_{field_name.replace(' ', '_')}"
-            edited_value = None
+            col = col%3
+            with cols[col]:
+                current_value = current_metadata.get(field_name, props.get("default_source", ""))
+                widget_key = f"general_meta_{field_name.replace(' ', '_')}"
+                edited_value = None
 
-            if props["type"] == "text_input":
-                edited_value = st.text_input(field_name, value=current_value, key=widget_key)
-            elif props["type"] == "selectbox":
-                options = props["options"]
-                if current_value not in options:
-                    current_value = options[0] if options else ""
-                idx = options.index(current_value)
-                edited_value = st.selectbox(field_name, options=options, index=idx, key=widget_key)
-            elif props["type"] == "date_input":
-                if isinstance(current_value, str):
-                    try:
-                        current_value = pd.to_datetime(current_value).date()
-                    except ValueError:
+                if props["type"] == "text_input":
+                    edited_value = st.text_input(field_name, value=current_value, key=widget_key)
+                elif props["type"] == "selectbox":
+                    options = props["options"]
+                    if current_value not in options:
+                        current_value = options[0] if options else ""
+                    idx = options.index(current_value)
+                    edited_value = st.selectbox(field_name, options=options, index=idx, key=widget_key)
+                elif props["type"] == "date_input":
+                    if isinstance(current_value, str):
+                        try:
+                            current_value = pd.to_datetime(current_value).date()
+                        except ValueError:
+                            current_value = datetime.date.today()
+                    elif not isinstance(current_value, datetime.date):
                         current_value = datetime.date.today()
-                elif not isinstance(current_value, datetime.date):
-                    current_value = datetime.date.today()
-                edited_value = str(st.date_input(field_name, value=current_value, key=widget_key))
-            else:
-                edited_value = current_value
+                    edited_value = str(st.date_input(field_name, value=current_value, key=widget_key))
+                else:
+                    edited_value = current_value
 
-            if edited_value != current_metadata.get(field_name):
-                current_metadata[field_name] = edited_value
-                changed = True
+                if edited_value != current_metadata.get(field_name):
+                    current_metadata[field_name] = edited_value
+                    changed = True
+
+            col = col+1
+        
+        st.write("---")
 
         return changed
 
@@ -260,7 +361,6 @@ class ExperimentReportManager:
         custom_fields = {k: v for k, v in current_metadata_dict.items() if k not in predefined_fields_dict}
 
         if custom_fields:
-            st.write("---")
             for k, v in custom_fields.items():
                 cols = st.columns([3, 3, 1])
                 with cols[0]:
@@ -350,7 +450,6 @@ class ExperimentReportManager:
             str: File path to the generated PDF report.
         """
 
-
         pdf_filepath = "/tmp/report.pdf"
 
         css = """
@@ -380,12 +479,8 @@ class ExperimentReportManager:
             text-align: left;
             word-break: break-word;
         }
-        td.number {
-            text-align: right;
-        }
-        th {
-            background-color: #f0f0f0;
-        }
+        td.number { text-align: right; }
+        th { background-color: #f0f0f0; }
         .highlight {
             background-color: #c8e6c9;
             font-weight: bold;
@@ -395,7 +490,7 @@ class ExperimentReportManager:
 
         html = f"<html><head>{css}</head><body><h1>Experiment Report</h1>"
 
-        # Experiment-wide metadata
+        # === General Experiment Metadata ===
         html += "<h2>Experiment Metadata</h2>"
         if experiment_metadata:
             for k, v in experiment_metadata.items():
@@ -405,7 +500,7 @@ class ExperimentReportManager:
 
         html += "<div style='page-break-after: always;'></div>"
 
-        # Sub-dataset sections
+        # === Subdataset Sections ===
         for idx, sub in enumerate(all_subdatasets_data):
             html += f"<h2>Sub-dataset {idx + 1}</h2>"
 
@@ -414,6 +509,7 @@ class ExperimentReportManager:
             mod_df = sub.get("modified_df")
             groups = sub.get("cell_groups", {})
 
+            # --- Subdataset Metadata ---
             if sub_custom_meta:
                 html += "<h3>Sub-dataset Specific Metadata</h3><table>"
                 for k, v in sub_custom_meta.items():
@@ -421,24 +517,57 @@ class ExperimentReportManager:
                 html += "</table>"
                 html += "<div style='page-break-after: avoid;'></div>"
 
+            # --- Always show Original ---
             html += f"<h3>Original Subdataset {idx + 1}</h3>"
             html += orig_df.to_html(index=False, escape=False, classes='dataframe') if not orig_df.empty else "<p>No data.</p>"
 
-            html += f"<h3>Modified Subdataset {idx + 1}</h3>"
-            html += mod_df.to_html(index=False, escape=False, classes='dataframe') if not mod_df.empty else "<p>No data.</p>"
+            has_been_modified = not orig_df.equals(mod_df)
 
+
+            # --- Conditional logic ---
             if groups:
+                # ✅ Groups exist → show highlighted, no modified
+                html += "<h3>Highlighted Dataset with Groups</h3>"
+                base_df = mod_df.copy() if mod_df is not None and not mod_df.empty else orig_df.copy()
+                html += self.generate_highlighted_html_table(base_df, groups)
+
+                # === Legend for group colors ===
+                html += "<h4>Color Legend</h4>"
+                legend_items = []
+                for gname, ginfo in groups.items():
+                    color = ginfo.get("color", "#DDD")
+                    safe_name = self._escape_html(str(gname))
+                    legend_items.append(
+                        f"<span style='display:inline-flex; align-items:center; margin-right:12px; margin-bottom:6px;'>"
+                        f"<span style='width:16px; height:16px; background:{color}; border:1px solid #555; "
+                        f"display:inline-block; margin-right:6px;'></span>"
+                        f"<span style='font-size:0.9em; color:#333;'>{safe_name}</span>"
+                        f"</span>"
+                    )
+                html += "<div style='margin-top:8px; margin-bottom:10px; display:flex; flex-wrap:wrap;'>" + "".join(legend_items) + "</div>"
+                html += "<div style='page-break-after: avoid;'></div>"
+
+
+            elif has_been_modified:
+                # ✅ No groups but modified → show modified
+                html += f"<h3>Modified Subdataset {idx + 1}</h3>"
+                html += mod_df.to_html(index=False, escape=False, classes='dataframe') if not mod_df.empty else "<p>No data.</p>"
+
+
+            # --- Group Details ---
+            if groups:
+                html += "<h3>Group Details</h3>"
                 for group, info in groups.items():
-                    html += f"<h3>Group: {group}</h3>"
-                    cells = info.get("cells", [])
+                    html += f"<h4>{group}</h4>"
+
                     stats = info.get("stats", {})
+                    cells = info.get("cells", [])
 
-                    html += pd.DataFrame(cells).to_html(index=False, escape=False) if cells else "<p>No cell data.</p>"
-
-                    if "Error" in stats:
-                        html += f"<p><strong>Error:</strong> {stats['Error']}</p>"
-                    elif stats:
+                    if stats:
                         html += pd.DataFrame([stats]).to_html(index=False, escape=False)
+                    if cells:
+                        html += "<p><strong>Cells in this group:</strong></p>"
+                        html += pd.DataFrame(cells).to_html(index=False, escape=False)
             else:
                 html += "<p>No cell groups defined.</p>"
 

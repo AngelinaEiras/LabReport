@@ -5,16 +5,16 @@ import json
 import os
 from datetime import datetime
 import time
+import matplotlib.pyplot as plt
 import re
 import numpy as np
+import html as _html
 from st_table_select_cell import st_table_select_cell  # For interactive cell selection
 from src.models.experiment import Experiment           # Custom class for experiment file parsing
 
 class Editor:
     def __init__(self):
         """Initialize the Editor page with configuration, constants, and trackers."""
-
-        st.header("Editor - Manage Experiments")  # Main title
 
         # === File paths for tracking ===
         self.TRACKER_FILE = "TRACKERS/file_tracker.json"         # Original tracker
@@ -32,9 +32,8 @@ class Editor:
         self.file_data = self.load_tracker()
 
         # Load main experiment list into session state if not already present
-        # if "experiments_list" not in st.session_state:
-        #     self.load_experiment_list()
-        self.load_experiment_list()
+        if "experiments_list" not in st.session_state:
+            self.load_experiment_list()
 
     # === Tracker Handling ===
     def save_tracker(self):
@@ -136,7 +135,37 @@ class Editor:
         else:
             st.write("---")
             if selected_experiment:
+                # This is the crucial check: only run initialization for a NEWLY selected experiment.
+                if "selected_experiment_for_subdatasets" not in st.session_state or \
+                   st.session_state.selected_experiment_for_subdatasets != selected_experiment:
+                    self.add_all_subdatasets(selected_experiment)
+                
                 self.edit_experiment(selected_experiment)
+
+    def add_all_subdatasets(self, selected_experiment):
+        """Initializes and saves ALL subdatasets for a given experiment to the tracker."""
+        experiment = Experiment.create_experiment_from_file(selected_experiment)
+        df = experiment.dataframe
+        st.session_state.subdatasets, valid_rows = Experiment.split_into_subdatasets(df)
+        st.session_state.selected_experiment_for_subdatasets = selected_experiment
+        st.session_state.selected_subdataset_index = 0
+
+        self.file_data.setdefault(selected_experiment, {})
+        inferred_plate = self.PLATE_ROW_RANGES_MAP.get(tuple(valid_rows), "Unknown wells")
+        self.file_data[selected_experiment]["plate_type"] = inferred_plate
+
+        # Pre-populate ALL subdatasets into the tracker.
+        for idx, sub_df in enumerate(st.session_state.subdatasets):
+            self.file_data[selected_experiment].setdefault(str(idx), {
+                "index_subdataset": sub_df.reset_index(drop=True).to_dict(orient="records"),
+                "index_subdataset_original": sub_df.reset_index(drop=True).to_dict(orient="records"),
+                "cell_groups": {},
+                "others": "",
+                "renamed_columns": {},
+            })
+        self.save_tracker()
+        st.info(f"Inferred plate: **{inferred_plate}**")
+
 
     # === Experiment Deletion Confirmation ===
     def confirm_delete_experiment(self, exp_to_delete):
@@ -185,6 +214,15 @@ class Editor:
             self.file_data[selected_experiment]["plate_type"] = inferred_plate
             self.save_tracker()
             st.info(f"Inferred plate: **{inferred_plate}**")
+
+        # ✅ NEW: initialize *all* subdatasets in the tracker
+        for i, sub in enumerate(st.session_state.subdatasets):
+            self.file_data[selected_experiment].setdefault(str(i), {
+                "index_subdataset": sub.reset_index(drop=True).to_dict(orient="records"),
+                "cell_groups": {},
+                "others": "",
+                "renamed_columns": {},
+            })
 
         # Select subdataset
         selected_index = st.selectbox(
@@ -268,10 +306,12 @@ class Editor:
         # === Show saved groups and stats ===
         self.display_saved_groups(selected_experiment, selected_index, sub_data)
 
+        self.statistic_graphics(sub_data) ####### chamar aqui o método
+
+
     def handle_cell_selection(self, exp, sub_idx, df, sub_data):
         """Handle UI and logic for selecting individual cells and grouping them."""
         st.subheader("Select Cells to Create Groups")
-        # Concise instruction for clearing selection
         st.info("To clear selection to a new group, click clear selection, then select the first cell of the new group and click clear selection again. Then proceed normally.")
 
         # Initialize state
@@ -296,7 +336,7 @@ class Editor:
                 st.session_state.current_group.append(info)
                 st.success(f"Added {info}")
 
-        # Display current (unsaved) group
+        # Display current (unsaved) group (keep visible while unsaved)
         if st.session_state.current_group:
             st.write("### Present unsaved group")
             st.table(pd.DataFrame(st.session_state.current_group))
@@ -312,9 +352,25 @@ class Editor:
                             st.error(f"Group '{st.session_state.group_name}' exists.")
                         else:
                             stats = self.calculate_statistics(pd.DataFrame(st.session_state.current_group))
+
+                            # ----- color assignment (persistent) -----
+                            color_palette = [
+                                "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
+                                "#E6B3FF", "#FFD9E6", "#C2FFAD", "#BFFCC6", "#AFCBFF",
+                                "#FFE6AA", "#FFBFA3", "#F3B0C3", "#A3F7BF", "#B2F0E6",
+                                "#F6E6B4", "#E0C3FC", "#FFD5CD", "#C9FFD5", "#D5F4E6",
+                                "#A1EAFB", "#FFCCE5", "#D1C4E9", "#C5E1A5", "#F8BBD0",
+                                "#FFF59D", "#B39DDB", "#80CBC4", "#FFAB91", "#CE93D8"
+                            ]
+                            used_colors = [g.get("color") for g in groups.values() if isinstance(g, dict) and "color" in g]
+                            available_colors = [c for c in color_palette if c not in used_colors]
+                            group_color = available_colors[0] if available_colors else color_palette[len(groups) % len(color_palette)]
+                            # -------------------------------------------
+
                             groups[st.session_state.group_name] = {
                                 "cells": st.session_state.current_group.copy(),
                                 "stats": stats,
+                                "color": group_color,
                             }
                             self.save_tracker()
                             st.success("Group saved.")
@@ -329,38 +385,240 @@ class Editor:
                     st.session_state.group_name = ""
                     st.rerun()
 
-    def display_saved_groups(self, exp, sub_idx, sub_data):
-        """Display saved groups and their statistics with delete option."""
-        st.subheader("Saved Groups & Statistics")
-        if sub_data["cell_groups"]:
-            for g_name, g_data in sub_data["cell_groups"].items():
-                df = pd.DataFrame(g_data["cells"])
-                col1, col2 = st.columns([6, 1])
-                with col1:
-                    st.write(f"### Group: {g_name}")
-                with col2:
-                    if st.button("🗑️ Delete", key=f"delete_group_{g_name}_{sub_idx}_{exp}"):
-                        st.session_state.confirm_delete_group = {"exp": exp, "sub": str(sub_idx), "group": g_name}
 
+    def display_saved_groups(self, exp, sub_idx, sub_data):
+        """
+        Display saved groups and their statistics with delete option.
+        Shows: [Selection (cells) - collapsed], [Highlighted full sub-dataset], [Statistics].
+        """
+        groups = sub_data.get("cell_groups", {})
+        if not groups:
+            return
+
+
+        # === Highlight grouped cells visually ===
+        # Build and display highlighted sub-dataset once, then show per-group stats beneath it.
+        # We produce one highlighted full dataframe per subdataset (so user can compare multiple groups visually).
+        # Use the saved colors for each group.
+        try:
+            # Build a single combined styled DataFrame for this subdataset
+            styled_full = self.highlight_grouped_cells(
+                pd.DataFrame(sub_data.get("index_subdataset", [])) if sub_data.get("index_subdataset") else pd.DataFrame(st.session_state.subdatasets[sub_idx]).reset_index(drop=True),
+                groups
+            )
+            st.subheader("Highlighted Selected Groups")
+            st.dataframe(styled_full, use_container_width=True)
+
+            # ✅ Add color legend right after the highlighted table
+            self.render_legend_html(groups)
+
+        except Exception as e:
+            st.error(f"Could not render highlighted sub-dataset: {e}")
+
+        st.write("---")
+
+        st.subheader("Saved Groups & Statistics")
+
+        # Then display each group's name and statistics; provide a collapsed expander for the selection cells
+        for g_name, g_data in groups.items():
+            color = g_data.get("color", "#DDD")
+            cols = st.columns([2, 6, 1, 2])
+            with cols[0]:
+                st.write(f"### Group: {g_name}")
+
+                st.markdown(
+                    f"<div style='width:150px;height:25px;background:{color};"
+                    f"border:1px solid #555;border-radius:6px;'></div>",
+                    unsafe_allow_html=True
+                    )
+                
+            with cols[1]:
+                # 1) Statistics
+                st.markdown("**Statistics**")
+                stats = g_data.get("stats", {})
+                if stats and "Error" not in stats:
+                    st.table(pd.DataFrame(stats, index=["Value"]))
+                else:
+                    st.warning(stats.get("Error", "No stats available."))
+            
+            with cols[2]:
+                if st.button("🗑️ Delete", key=f"delete_group_{g_name}_{sub_idx}_{exp}"):
+                    st.session_state.confirm_delete_group = {"exp": exp, "sub": str(sub_idx), "group": g_name}
                 # Confirm deletion
                 if st.session_state.get("confirm_delete_group", {}).get("group") == g_name:
                     st.warning(f"Confirm deletion of '{g_name}'?")
-                    col_yes, col_no = st.columns(2)
+                    col_yes, col_no = st.columns([2,2], gap="small")
                     with col_yes:
-                        if st.button("Yes, Delete"):
+                        if st.button("Yes", key=f"confirm_del_yes_{g_name}_{sub_idx}"):
                             del sub_data["cell_groups"][g_name]
                             self.save_tracker()
                             st.rerun()
                     with col_no:
-                        if st.button("No, Cancel"):
+                        if st.button("No", key=f"confirm_del_no_{g_name}_{sub_idx}"):
                             del st.session_state.confirm_delete_group
                             st.rerun()
+                    # In case deletion was requested, skip showing further info for this group this cycle
+                    continue
+                
+            with cols[3]:
+                # --- Rename group ---
+                new_name = st.text_input(
+                    "**Rename Group:**",
+                    value=g_name,
+                    key=f"rename_input_{exp}_{sub_idx}_{g_name}"
+                )
+                if new_name != g_name:
+                    if new_name in groups:
+                        st.error(f"A group named '{new_name}' already exists. Please choose another name.")
+                    elif st.button("✅ Confirm Rename", key=f"rename_confirm_{exp}_{sub_idx}_{g_name}"):
+                        # Perform rename safely
+                        groups[new_name] = groups.pop(g_name)
+                        self.save_tracker()
+                        st.success(f"Group '{g_name}' renamed to '{new_name}'.")
+                        st.rerun()
+
+            # Selection (cells) — collapsed by default (hidden); click to inspect
+            with st.expander("Selection (cells) — click to show", expanded=False):
+                sel_df = pd.DataFrame(g_data.get("cells", []))
+                if not sel_df.empty:
+                    st.dataframe(sel_df)
                 else:
-                    st.table(df)
-                    stats = g_data["stats"]
-                    if stats and "Error" not in stats:
-                        st.table(pd.DataFrame(stats, index=["Value"]))
-                    else:
-                        st.warning(stats.get("Error", "No stats available."))
-        else:
+                    st.info("No cell coordinates saved.")
+
+            st.write("---")
+
+
+    def highlight_grouped_cells(self, sub_df, cell_groups):
+        """Return a styled DataFrame with grouped cells highlighted using each group's saved color."""
+        # Ensure sub_df is a DataFrame
+        if sub_df is None or sub_df.empty:
+            return sub_df if isinstance(sub_df, pd.DataFrame) else pd.DataFrame()
+
+        # Normalize sub_df index to RangeIndex so row index matches row letter conversion
+        sub_df = sub_df.reset_index(drop=True).copy()
+
+        # style_map DataFrame
+        style_df = pd.DataFrame('', index=sub_df.index, columns=sub_df.columns)
+
+        # default fallback palette (used if a group misses a color)
+        default_palette = [
+            "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
+            "#E6B3FF", "#FFD9E6", "#C2FFAD", "#BFFCC6", "#AFCBFF",
+            "#FFE6AA", "#FFBFA3", "#F3B0C3", "#A3F7BF", "#B2F0E6",
+            "#F6E6B4", "#E0C3FC", "#FFD5CD", "#C9FFD5", "#D5F4E6",
+            "#A1EAFB", "#FFCCE5", "#D1C4E9", "#C5E1A5", "#F8BBD0",
+            "#FFF59D", "#B39DDB", "#80CBC4", "#FFAB91", "#CE93D8"
+        ]
+
+        for i, (group_name, g_data) in enumerate(cell_groups.items()):
+            color = g_data.get("color", default_palette[i % len(default_palette)])
+            for cell in g_data.get("cells", []):
+                try:
+                    row_idx = ord(cell["row"]) - 65
+                    col_name = cell["column"]
+                    if col_name in style_df.columns and 0 <= row_idx < len(style_df):
+                        style_df.loc[row_idx, col_name] = f'background-color: {color}'
+                except Exception:
+                    # ignore if row/col not found
+                    continue
+
+        # apply style map
+        return sub_df.style.apply(lambda _: style_df, axis=None)
+
+    def render_legend_html(self, groups):
+        # container ensures wrapping; max-width helps layout on narrow screens
+        container_style = (
+            "display:flex;flex-wrap:wrap;gap:8px;align-items:center;"
+            "margin:6px 0;padding:4px;max-width:100%;"
+        )
+        item_style = "display:flex;align-items:center;gap:8px;margin:4px;padding:2px;"
+        square_style = "width:18px;height:18px;border:1px solid #555;border-radius:4px;flex:0 0 auto;"
+
+        legend_html = f"<div style='{container_style}'>"
+        for g_name, g_data in groups.items():
+            color = g_data.get("color", "#DDD")
+            safe_name = _html.escape(str(g_name))
+            legend_html += (
+                f"<div style='{item_style}'>"
+                f"<div style='{square_style}background:{color};'></div>"
+                f"<div style='font-size:0.95em;line-height:1.1'>{safe_name}</div>"
+                f"</div>"
+            )
+        legend_html += "</div>"
+
+        st.markdown(legend_html, unsafe_allow_html=True)
+
+
+    # Para criar uma nova função à aplicação basta adicionar o método desejado e de seguida 
+    # chamar o método aqui -> # === Data Editor UI ===
+    def statistic_graphics(self, sub_data):
+        """Display collapsible charts comparing group statistics."""
+        groups = sub_data.get("cell_groups", {})
+        if not groups:
             st.info("No groups saved.")
+            return
+
+        # Gather all stats into a DataFrame for easy plotting
+        stats_data = []
+        for g_name, g_data in groups.items():
+            stats = g_data.get("stats", {})
+            if stats and "Error" not in stats:
+                row = {"Group": g_name}
+                row.update(stats)
+                stats_data.append(row)
+
+        if not stats_data:
+            st.warning("No valid numerical statistics found.")
+            return
+
+        stats_df = pd.DataFrame(stats_data).set_index("Group")
+
+        # --- Collapsible visualizations ---
+        st.subheader("📊 Statistical Comparisons")
+
+        # Define the metrics to visualize (order matters here)
+        metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
+
+        # Create a column per metric so expanders align horizontally
+        cols = st.columns(len(metrics))
+
+        for i, metric in enumerate(metrics):
+            # Skip metrics not present in the assembled stats_df
+            if metric not in stats_df.columns:
+                continue
+
+            with cols[i]:
+                with st.expander(f"Show {metric} comparison", expanded=False):
+                    # local import to avoid relying on module-level plt import
+                    import matplotlib.pyplot as plt
+
+                    fig, ax = plt.subplots(figsize=(4, 3))
+
+                    # Ensure colors follow the order of stats_df rows (groups)
+                    # If the group's color is missing, fallback to a neutral gray.
+                    colors = []
+                    for grp in stats_df.index.astype(str):
+                        color = groups.get(grp, {}).get("color")
+                        if color is None:
+                            # fallback: try to find by substring match (in case keys differ)
+                            found = False
+                            for gname, ginfo in groups.items():
+                                if gname == grp or str(gname) == str(grp):
+                                    color = ginfo.get("color")
+                                    found = True
+                                    break
+                            if not found:
+                                color = "#A0A0A0"
+                        colors.append(color)
+
+                    # Draw bar chart
+                    ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
+                    ax.set_title(f"{metric} by Group", fontsize=11)
+                    ax.set_xlabel("Group", fontsize=9)
+                    ax.set_ylabel(metric, fontsize=9)
+                    ax.grid(axis="y", linestyle="--", alpha=0.6)
+
+                    # Improve x-label readability
+                    plt.xticks(rotation=45, ha="right", fontsize=9)
+                    plt.tight_layout()
+                    st.pyplot(fig)
