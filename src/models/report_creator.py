@@ -554,27 +554,48 @@ class ExperimentReportManager:
                 html += mod_df.to_html(index=False, escape=False, classes='dataframe') if not mod_df.empty else "<p>No data.</p>"
 
 
-            # --- Group Details ---
+        #     # --- Group Details --- ### grupos com as células escolhidas descriminadas
+        #     if groups:
+        #         html += "<h3>Group Details</h3>"
+        #         for group, info in groups.items():
+        #             html += f"<h4>{group}</h4>"
+
+        #             stats = info.get("stats", {})
+        #             cells = info.get("cells", [])
+
+        #             if stats:
+        #                 html += pd.DataFrame([stats]).to_html(index=False, escape=False)
+        #             if cells:
+        #                 html += "<p><strong>Cells in this group:</strong></p>"
+        #                 html += pd.DataFrame(cells).to_html(index=False, escape=False)
+        #     else:
+        #         html += "<p>No cell groups defined.</p>"
+
+        #     html += "<div style='page-break-after: always;'></div>"
+
+        # html += "</body></html>"
+
+        # HTML(string=html).write_pdf(pdf_filepath)
+        # return pdf_filepath
+
+            # --- Group Details (only stats, no cells) ---
             if groups:
                 html += "<h3>Group Details</h3>"
                 for group, info in groups.items():
                     html += f"<h4>{group}</h4>"
-
                     stats = info.get("stats", {})
-                    cells = info.get("cells", [])
-
                     if stats:
                         html += pd.DataFrame([stats]).to_html(index=False, escape=False)
-                    if cells:
-                        html += "<p><strong>Cells in this group:</strong></p>"
-                        html += pd.DataFrame(cells).to_html(index=False, escape=False)
             else:
                 html += "<p>No cell groups defined.</p>"
 
-            html += "<div style='page-break-after: always;'></div>"
+            # Add a page break after each subdataset, except the last one
+            if idx < len(all_subdatasets_data) - 1:
+                html += "<div style='page-break-after: always;'></div>"
 
         html += "</body></html>"
 
         HTML(string=html).write_pdf(pdf_filepath)
         return pdf_filepath
 
+### falta criar uma nova utilização da app, para retirar um relatório como se alguém tivesse alterado funções
