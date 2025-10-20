@@ -119,7 +119,7 @@ class ExperimentReportManager:
         # Select experiment
         with selected_experiment_col:
             selected_experiment = st.selectbox(
-                "Select an experiment to edit:",
+                "Select an experiment to use:",
                 experiment_keys,
                 index=initial_select_index,
                 format_func=lambda x: os.path.basename(x) if x else "No experiments available",
@@ -127,54 +127,54 @@ class ExperimentReportManager:
             )
             st.session_state.selected_experiment_key_for_report = selected_experiment
 
-        # Delete button
-        with delete_button_col:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🗑️ Delete Selected Experiment", disabled=not selected_experiment, key="delete_experiment_button"):
-                st.session_state.confirm_delete_experiment = selected_experiment
+        # # Delete button
+        # with delete_button_col:
+        #     st.markdown("<br>", unsafe_allow_html=True)
+        #     if st.button("🗑️ Delete Selected Experiment", disabled=not selected_experiment, key="delete_experiment_button"):
+        #         st.session_state.confirm_delete_experiment = selected_experiment
 
-        # Confirm delete
-        if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
-            exp_to_delete = st.session_state.confirm_delete_experiment
-            st.warning(f"Are you sure you want to delete ALL data for experiment '{os.path.basename(exp_to_delete)}'?")
+        # # Confirm delete
+        # if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
+        #     exp_to_delete = st.session_state.confirm_delete_experiment
+        #     st.warning(f"Are you sure you want to delete ALL data for experiment '{os.path.basename(exp_to_delete)}'?")
 
-            col_yes, col_no = st.columns(2)
-            with col_yes:
-                if st.button("Yes, Delete All Data", key="confirm_delete_yes"):
-                    # Remove from editor tracker
-                    # if exp_to_delete in self.editor_data:
-                    #     del self.editor_data[exp_to_delete]
-                    #     self.save_json_file(self.editor_data, path=self.tracker_file)
-                    editor_data = self.load_json_file(self.tracker_file)
-                    if exp_to_delete in editor_data:
-                        del editor_data[exp_to_delete]
-                        self.save_json_file(editor_data, path=self.tracker_file)
+        #     col_yes, col_no = st.columns(2)
+        #     with col_yes:
+        #         if st.button("Yes, Delete All Data", key="confirm_delete_yes"):
+        #             # Remove from editor tracker
+        #             # if exp_to_delete in self.editor_data:
+        #             #     del self.editor_data[exp_to_delete]
+        #             #     self.save_json_file(self.editor_data, path=self.tracker_file)
+        #             editor_data = self.load_json_file(self.tracker_file)
+        #             if exp_to_delete in editor_data:
+        #                 del editor_data[exp_to_delete]
+        #                 self.save_json_file(editor_data, path=self.tracker_file)
 
 
-                    # Remove from report metadata tracker
-                    if "experiment_metadata" in self.report_data:
-                        self.report_data["experiment_metadata"].pop(exp_to_delete, None)
+        #             # Remove from report metadata tracker
+        #             if "experiment_metadata" in self.report_data:
+        #                 self.report_data["experiment_metadata"].pop(exp_to_delete, None)
 
-                    if "subdataset_metadata" in self.report_data:
-                        keys_to_delete = [k for k in self.report_data["subdataset_metadata"] if k.startswith(f"{exp_to_delete}_")]
-                        for k in keys_to_delete:
-                            del self.report_data["subdataset_metadata"][k]
+        #             if "subdataset_metadata" in self.report_data:
+        #                 keys_to_delete = [k for k in self.report_data["subdataset_metadata"] if k.startswith(f"{exp_to_delete}_")]
+        #                 for k in keys_to_delete:
+        #                     del self.report_data["subdataset_metadata"][k]
 
-                    self.save_json_file(self.report_data, path=self.report_metadata_file)
+        #             self.save_json_file(self.report_data, path=self.report_metadata_file)
 
-                    st.success(f"Deleted all data for experiment '{os.path.basename(exp_to_delete)}'")
-                    del st.session_state.confirm_delete_experiment
-                    st.session_state.selected_experiment_key_for_report = None
-                    st.rerun()
+        #             st.success(f"Deleted all data for experiment '{os.path.basename(exp_to_delete)}'")
+        #             del st.session_state.confirm_delete_experiment
+        #             st.session_state.selected_experiment_key_for_report = None
+        #             st.rerun()
 
-            with col_no:
-                if st.button("No, Cancel", key="confirm_delete_no"):
-                    del st.session_state.confirm_delete_experiment
-                    st.info("Deletion cancelled.")
-                    st.rerun()
+        #     with col_no:
+        #         if st.button("No, Cancel", key="confirm_delete_no"):
+        #             del st.session_state.confirm_delete_experiment
+        #             st.info("Deletion cancelled.")
+        #             st.rerun()
 
-        if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
-            return None
+        # if "confirm_delete_experiment" in st.session_state and st.session_state.confirm_delete_experiment:
+        #     return None
 
         return selected_experiment
 
