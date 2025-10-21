@@ -37,7 +37,7 @@ def add_logo():
 
 # Set the page configuration before rendering anything
 st.set_page_config(
-    page_icon="🧪",                  # Emoji to show as favicon on browser tab
+    page_icon="images/page_icon2.png",            # Emoji to show as favicon on browser tab
     layout="wide",                   # Use full-width layout for better use of screen space
     initial_sidebar_state="expanded" # Sidebar is open by default
 )

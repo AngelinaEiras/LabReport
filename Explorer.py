@@ -13,7 +13,7 @@ from src.models.file_selector import Selector  # Custom class to handle file sel
 # === Streamlit Page Configuration ===
 st.set_page_config(
     page_title="File Tracker & Experiments",  # Title in browser tab
-    page_icon="🧪",                           # Favicon icon
+    page_icon="images/page_icon2.png", # "🧪",                           # Favicon icon
     layout="wide",                            # Full width layout
     initial_sidebar_state="expanded"          # Sidebar opened by default
 )
@@ -162,15 +162,15 @@ if file_data:
 
         # === Display File Path ===
         display_path = file_path if len(file_path) < 50 else f"...{file_path[-50:]}"
-        cols[0].write(f"📄 **{display_path}**")
+        cols[0].write(f"**{display_path}**")
 
         # === Display File Size ===
         size, scale = (metadata['size']/1024, "KB") if metadata['size'] / 1024 < 1024 else (metadata['size'] / 1024/1024, "MB")
         cols[1].write(f"{size:.2f} {scale}")
 
         # === Display Creation and Modification Timestamps ===
-        cols[2].write(f"🕒 **Created:** {metadata['created']}")
-        cols[2].write(f"🛠 **Modified:** {metadata['last_modified']}")
+        cols[2].write(f"**Created:** {metadata['created']}")
+        cols[2].write(f"**Modified:** {metadata['last_modified']}")
 
 
         # === Editable Notes Section with Character Limit ===
@@ -220,7 +220,7 @@ if file_data:
             # --- Delete file from tracker with confirmation ---
             confirm_key = f"confirm_delete_{file_path}"
 
-            if action_cols[1].button("❌ Delete", key=f"delete_{file_path}"):
+            if action_cols[1].button("Delete", key=f"delete_{file_path}"):
                 st.session_state[confirm_key] = True  # Trigger confirmation prompt
 
             # Show confirmation if delete was pressed
@@ -229,8 +229,8 @@ if file_data:
                 with cols_confirm[0]:
                     st.warning("Are you sure you want delete this file from LabReport?")
                 with cols_confirm[1]:
-                    confirm_yes = st.button("✅ Yes, Delete", key=f"yes_{file_path}")
-                    confirm_no = st.button("❌ Cancel", key=f"cancel_{file_path}")
+                    confirm_yes = st.button("Yes, Delete", key=f"yes_{file_path}")
+                    confirm_no = st.button("Cancel", key=f"cancel_{file_path}")
 
                 if confirm_yes:
                     try:
@@ -279,7 +279,7 @@ if file_data:
 
 
             # Reveal file in file explorer
-            if action_cols[2].button("📁 Show in Folder", key=f"show_folder_{file_path}"):
+            if action_cols[2].button("Show in folder", key=f"show_folder_{file_path}"):
                 folder_path = os.path.dirname(file_path)
                 try:
                     if os.name == "nt":

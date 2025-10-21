@@ -43,7 +43,7 @@ def add_logo():
 
 # === Main App ===
 def main():
-    st.set_page_config(page_icon="🧪", 
+    st.set_page_config(page_icon="images/page_icon2.png", 
                        layout="wide", 
                        initial_sidebar_state="expanded")
 
@@ -139,7 +139,7 @@ def main():
         manager.save_json_file(report_data)
         st.info("Metadata updated.")
 
-    st.markdown("#### Custom Metadata Fields")
+    st.markdown("#### Custom General Fields")
 
     custom_changed = manager.display_custom_metadata(current_metadata, metadata_fields, metadata_key)
     custom_added = manager.add_custom_metadata_field(current_metadata, metadata_key)
@@ -150,61 +150,126 @@ def main():
         st.rerun()
 
 
-    for sub_idx in sorted_indices:
-        st.markdown(f"---\n### 🧬 Sub-dataset {sub_idx + 1}\n")
-        selected_data = subdatasets[str(sub_idx)]
+    # for sub_idx in sorted_indices:
+    #     st.markdown(f"---\n### 🧬 Sub-dataset {sub_idx + 1}\n")
+    #     selected_data = subdatasets[str(sub_idx)]
 
-        # Convert data safely
+    #     # Convert data safely
+    #     orig_df = pd.DataFrame(selected_data.get("index_subdataset_original", []))
+    #     mod_df = pd.DataFrame(selected_data.get("index_subdataset", []))
+    #     groups = selected_data.get("cell_groups", {})
+
+    #     # --- Always show Original Subdataset ---
+    #     manager.show_dataframe("Original Subdataset", selected_data.get("index_subdataset_original", []))
+
+    #     # --- If groups exist → show Highlighted (but NOT Modified) ---
+    #     if groups:
+    #         with st.expander("🖍 Highlighted Groups View", expanded=False):
+    #             base_df = mod_df if not mod_df.empty else orig_df
+    #             if base_df is None or base_df.empty:
+    #                 st.info("No data available for highlight view.")
+    #             else:
+    #                 try:
+    #                     highlight_html = manager.generate_highlighted_html_table(base_df, groups)
+    #                     st.markdown(highlight_html, unsafe_allow_html=True)
+
+    #                     # Simple color legend
+    #                     legend_items = []
+    #                     for gname, ginfo in groups.items():
+    #                         color = ginfo.get("color", "#DDD")
+    #                         safe_name = manager._escape_html(str(gname))
+    #                         legend_items.append(
+    #                             f"<span style='display:inline-flex;align-items:center;margin-right:10px;'>"
+    #                             f"<span style='width:18px;height:18px;background:{color};border:1px solid #555;margin-right:6px;'></span>"
+    #                             f"<span style='font-size:0.95em;'>{safe_name}</span></span>"
+    #                         )
+    #                     st.markdown("<div style='margin-top:6px;'>" + "".join(legend_items) + "</div>", unsafe_allow_html=True)
+    #                 except Exception as e:
+    #                     st.error(f"Error generating highlighted dataset: {e}")
+
+    #     # --- If NO groups but modified exists → show Modified ---
+    #     elif not mod_df.empty and not orig_df.equals(mod_df):
+    #         st.markdown("#### 🧩 Modified Subdataset")
+    #         manager.show_dataframe("Modified Subdataset", selected_data.get("index_subdataset", []))
+
+    #     # --- Subdataset Custom Metadata ---
+    #     sub_key = f"{selected_experiment}_{sub_idx}"
+    #     subdataset_section = experiment_entry.setdefault("subdataset_metadata", {})
+    #     sub_fields = subdataset_section.setdefault(str(sub_idx), {})
+
+    #     st.markdown("#### Sub-dataset Custom Fields")
+    #     sub_custom_changed = manager.display_custom_metadata(sub_fields, metadata_fields, sub_key)
+    #     sub_custom_added = manager.add_custom_metadata_field(sub_fields, sub_key)
+
+    #     if sub_custom_changed or sub_custom_added:
+    #         manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
+    #         st.info("Custom subdataset field changes saved.")
+    #         st.rerun()
+
+    for sub_idx in sorted_indices:
+        selected_data = subdatasets[str(sub_idx)]
         orig_df = pd.DataFrame(selected_data.get("index_subdataset_original", []))
         mod_df = pd.DataFrame(selected_data.get("index_subdataset", []))
         groups = selected_data.get("cell_groups", {})
 
-        # --- Always show Original Subdataset ---
-        manager.show_dataframe("Original Subdataset", selected_data.get("index_subdataset_original", []))
+        # === Summary ===
+        row_count = len(orig_df)
+        group_count = len(groups)
+        label = f"🧬 Sub-dataset {sub_idx + 1} — {row_count} rows, {group_count} groups"
 
-        # --- If groups exist → show Highlighted (but NOT Modified) ---
-        if groups:
-            with st.expander("🖍 Highlighted Groups View", expanded=False):
-                base_df = mod_df if not mod_df.empty else orig_df
-                if base_df is None or base_df.empty:
-                    st.info("No data available for highlight view.")
+        # === One expander per subdataset ===
+        with st.expander(label, expanded=False):
+
+            # --- Tabs for each view ---
+            tabs = st.tabs(["📄 Original", "🖍 Highlighted", "🗂 Metadata"])
+
+            # --- Tab 1: Original Subdataset ---
+            with tabs[0]:
+                if orig_df.empty:
+                    st.info("No data available.")
                 else:
-                    try:
-                        highlight_html = manager.generate_highlighted_html_table(base_df, groups)
-                        st.markdown(highlight_html, unsafe_allow_html=True)
+                    manager.show_dataframe("Original Subdataset", selected_data.get("index_subdataset_original", []))
 
-                        # Simple color legend
-                        legend_items = []
-                        for gname, ginfo in groups.items():
-                            color = ginfo.get("color", "#DDD")
-                            safe_name = manager._escape_html(str(gname))
-                            legend_items.append(
+            # --- Tab 2: Highlighted Groups View ---
+            with tabs[1]:
+                if groups:
+                    base_df = mod_df if not mod_df.empty else orig_df
+                    if base_df is None or base_df.empty:
+                        st.info("No data available for highlight view.")
+                    else:
+                        try:
+                            highlight_html = manager.generate_highlighted_html_table(base_df, groups)
+                            st.markdown(highlight_html, unsafe_allow_html=True)
+
+                            # Legend (simple horizontal layout)
+                            legend_items = [
                                 f"<span style='display:inline-flex;align-items:center;margin-right:10px;'>"
-                                f"<span style='width:18px;height:18px;background:{color};border:1px solid #555;margin-right:6px;'></span>"
-                                f"<span style='font-size:0.95em;'>{safe_name}</span></span>"
-                            )
-                        st.markdown("<div style='margin-top:6px;'>" + "".join(legend_items) + "</div>", unsafe_allow_html=True)
-                    except Exception as e:
-                        st.error(f"Error generating highlighted dataset: {e}")
+                                f"<span style='width:18px;height:18px;background:{g.get('color', '#DDD')};border:1px solid #555;margin-right:6px;'></span>"
+                                f"<span style='font-size:0.95em;'>{manager._escape_html(str(name))}</span></span>"
+                                for name, g in groups.items()
+                            ]
+                            st.markdown("<div style='margin-top:6px;'>" + "".join(legend_items) + "</div>", unsafe_allow_html=True)
+                        except Exception as e:
+                            st.error(f"Error generating highlighted dataset: {e}")
+                else:
+                    st.info("No groups defined for highlighting.")
 
-        # --- If NO groups but modified exists → show Modified ---
-        elif not mod_df.empty and not orig_df.equals(mod_df):
-            st.markdown("#### 🧩 Modified Subdataset")
-            manager.show_dataframe("Modified Subdataset", selected_data.get("index_subdataset", []))
+            # --- Tab 3: Custom Metadata ---
+            with tabs[2]:
+                sub_key = f"{selected_experiment}_{sub_idx}"
+                subdataset_section = experiment_entry.setdefault("subdataset_metadata", {})
+                sub_fields = subdataset_section.setdefault(str(sub_idx), {})
 
-        # --- Subdataset Custom Metadata ---
-        sub_key = f"{selected_experiment}_{sub_idx}"
-        subdataset_section = experiment_entry.setdefault("subdataset_metadata", {})
-        sub_fields = subdataset_section.setdefault(str(sub_idx), {})
+                sub_custom_changed = manager.display_custom_metadata(sub_fields, metadata_fields, sub_key)
+                sub_custom_added = manager.add_custom_metadata_field(sub_fields, sub_key)
 
-        st.markdown("#### Sub-dataset Custom Fields")
-        sub_custom_changed = manager.display_custom_metadata(sub_fields, metadata_fields, sub_key)
-        sub_custom_added = manager.add_custom_metadata_field(sub_fields, sub_key)
+                if sub_custom_changed or sub_custom_added:
+                    manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
+                    st.info("Custom subdataset field changes saved.")
+                    st.rerun()
 
-        if sub_custom_changed or sub_custom_added:
-            manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
-            st.info("Custom subdataset field changes saved.")
-            st.rerun()
+
+
 
     st.markdown("---")
 

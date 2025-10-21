@@ -21,5 +21,18 @@
                 "About the observed cell viability":"Cell viability was inconsistent with what was expected at 24 hours, with high variability between replicates."
             }
         }
+    },
+    "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20230301_PB_triton_2.xlsx":{
+        "general_metadata":{
+            "Plate Type":"96 wells",
+            "Timepoint":"",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"",
+            "Test System":"",
+            "Seeding density":"",
+            "Seeding Date":"2025-10-20",
+            "Passage of the Used Test System":"",
+            "Analysis Date":"2025-10-20"
+        }
     }
 }

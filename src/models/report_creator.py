@@ -284,7 +284,7 @@ class ExperimentReportManager:
 
         if data:
             df = pd.DataFrame(data)
-            with st.expander(f"📊 {title}", expanded=False):
+            with st.markdown(f"📊 {title}"):
                 st.dataframe(df)
             return df
         return pd.DataFrame()
