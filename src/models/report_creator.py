@@ -586,6 +586,9 @@ class ExperimentReportManager:
                     stats = info.get("stats", {})
                     if stats:
                         html += pd.DataFrame([stats]).to_html(index=False, escape=False)
+                    
+                    # add group stats graph
+                    html += self.report_fig(pd.DataFrame([stats]), groups={group: info})
             else:
                 html += "<p>No cell groups defined.</p>"
 
@@ -599,3 +602,49 @@ class ExperimentReportManager:
         return pdf_filepath
 
 ### falta criar uma nova utilização da app, para retirar um relatório como se alguém tivesse alterado funções
+
+    def report_fig(self, stats_df, groups):
+        import matplotlib.pyplot as plt
+        import base64
+        from io import BytesIO
+        
+        metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
+        for _, metric in enumerate(metrics):
+            if metric not in stats_df.columns:
+                    continue
+
+            fig, ax = plt.subplots(figsize=(4, 3))
+
+            # Ensure colors follow the order of stats_df rows (groups)
+            # If the group's color is missing, fallback to a neutral gray.
+            colors = []
+            for grp in stats_df.index.astype(str):
+                color = groups.get(grp, {}).get("color")
+                if color is None:
+                    # fallback: try to find by substring match (in case keys differ)
+                    found = False
+                    for gname, ginfo in groups.items():
+                        if gname == grp or str(gname) == str(grp):
+                            color = ginfo.get("color")
+                            found = True
+                            break
+                    if not found:
+                        color = "#A0A0A0"
+                colors.append(color)
+
+            # Draw bar chart
+            ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
+            ax.set_title(f"{metric} by Group", fontsize=11)
+            ax.set_xlabel("Group", fontsize=9)
+            ax.set_ylabel(metric, fontsize=9)
+            ax.grid(axis="y", linestyle="--", alpha=0.6)
+
+            # Improve x-label readability
+            plt.xticks(rotation=45, ha="right", fontsize=9)
+            plt.tight_layout()
+            plt.close(fig)
+            tmpfile = BytesIO()
+            fig.savefig(tmpfile, format='png')
+            encoded = base64.b64encode(tmpfile.getvalue()).decode('utf-8')
+
+            return '<img src=\'data:image/png;base64,{}\'>'.format(encoded)
