@@ -581,14 +581,18 @@ class ExperimentReportManager:
             # --- Group Details (only stats, no cells) ---
             if groups:
                 html += "<h3>Group Details</h3>"
+                group_stats = {}
                 for group, info in groups.items():
                     html += f"<h4>{group}</h4>"
                     stats = info.get("stats", {})
                     if stats:
                         html += pd.DataFrame([stats]).to_html(index=False, escape=False)
-                    
-                    # add group stats graph
-                    html += self.report_fig(pd.DataFrame([stats]), groups={group: info})
+                        group_stats[group] = stats
+
+                # Plot all groups together
+                if group_stats:
+                    stats_df = pd.DataFrame.from_dict(group_stats, orient="index")
+                    html += self.report_fig(stats_df, groups)
             else:
                 html += "<p>No cell groups defined.</p>"
 
@@ -646,5 +650,3 @@ class ExperimentReportManager:
             tmpfile = BytesIO()
             fig.savefig(tmpfile, format='png')
             encoded = base64.b64encode(tmpfile.getvalue()).decode('utf-8')
-
-            return '<img src=\'data:image/png;base64,{}\'>'.format(encoded)
