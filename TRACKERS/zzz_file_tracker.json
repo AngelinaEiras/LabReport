@@ -1,0 +1,54 @@
+{
+    "/home/angelina/Desktop/final_LabReport/tests/20230308_PB triton seed 06.03.xlsx": {
+        "filepath": "/home/angelina/Desktop/final_LabReport/tests/20230308_PB triton seed 06.03.xlsx",
+        "name": "20230308_PB triton seed 06.03.xlsx",
+        "metadata": {
+            "size": 31004,
+            "created": "2025-06-30T14:11:27.128510",
+            "last_modified": "2025-04-14T19:09:57.672994"
+        },
+        "note": "PB viability assay performed on A549 cells at 12h and 24h post-exposure. 6 concentrations tested. Unexpected result at 0,5% - possible pipetting error. Retest scheduled.",
+        "creation_date": "2025-10-18T23:30:03.760556",
+        "last_modified": "2025-10-18T23:30:10.662972",
+        "is_experiment": true
+    },
+    "/home/angelina/Desktop/dissertacao/a_escrita/OECD_GLP_data/General Guidelines Nanosafety Lab v1.pdf": {
+        "filepath": "/home/angelina/Desktop/dissertacao/a_escrita/OECD_GLP_data/General Guidelines Nanosafety Lab v1.pdf",
+        "name": "General Guidelines Nanosafety Lab v1.pdf",
+        "metadata": {
+            "size": 548267,
+            "created": "2025-06-18T15:47:23.794708",
+            "last_modified": "2025-06-18T15:47:23.794708"
+        },
+        "note": "study the section 3 and 7",
+        "creation_date": "2025-10-19T15:49:33.182685",
+        "last_modified": "2025-10-19T15:49:52.909185",
+        "is_experiment": false
+    },
+    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230301_PB_triton_2.xlsx": {
+        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20230301_PB_triton_2.xlsx",
+        "name": "20230301_PB_triton_2.xlsx",
+        "metadata": {
+            "size": 12433,
+            "created": "2023-05-12T09:58:39.300839",
+            "last_modified": "2023-05-12T09:58:39.300839"
+        },
+        "note": "",
+        "creation_date": "2025-10-20T23:48:32.375308",
+        "last_modified": "2025-10-20T23:49:01.986070",
+        "is_experiment": true
+    },
+    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx": {
+        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx",
+        "name": "20250514_PB.xlsx",
+        "metadata": {
+            "size": 6357,
+            "created": "2025-10-24T01:16:08.898675",
+            "last_modified": "2025-10-24T01:16:02.759647"
+        },
+        "note": "",
+        "creation_date": "2025-10-24T01:17:00.250154",
+        "last_modified": "2025-10-24T01:17:17.889311",
+        "is_experiment": false
+    }
+}

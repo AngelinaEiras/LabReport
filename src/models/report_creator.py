@@ -581,18 +581,68 @@ class ExperimentReportManager:
             # --- Group Details (only stats, no cells) ---
             if groups:
                 html += "<h3>Group Details</h3>"
-                group_stats = {}
                 for group, info in groups.items():
                     html += f"<h4>{group}</h4>"
                     stats = info.get("stats", {})
                     if stats:
                         html += pd.DataFrame([stats]).to_html(index=False, escape=False)
-                        group_stats[group] = stats
+                
 
-                # Plot all groups together
-                if group_stats:
-                    stats_df = pd.DataFrame.from_dict(group_stats, orient="index")
-                    html += self.report_fig(stats_df, groups)
+                ########### ADDED === Group Statistic Graphics ===
+                if groups:
+                    html += "<h3>Statistic Comparisons</h3>"
+
+                    # Collect stats
+                    stats_rows = []
+                    for g_name, g_data in groups.items():
+                        stats = g_data.get("stats", {})
+                        if stats and "Error" not in stats:
+                            row = {"Group": g_name}
+                            row.update(stats)
+                            stats_rows.append(row)
+
+                    if stats_rows:
+                        stats_df = pd.DataFrame(stats_rows).set_index("Group")
+                        metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
+
+                        import matplotlib.pyplot as plt
+                        import uuid
+
+                        for metric in metrics:
+                            if metric not in stats_df.columns:
+                                continue
+
+                            fig, ax = plt.subplots(figsize=(5, 3))
+
+                            # Load group colors
+                            colors = []
+                            for grp in stats_df.index.astype(str):
+                                color = groups.get(grp, {}).get("color", "#999")
+                                colors.append(color)
+
+                            ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
+                            ax.set_title(f"{metric} by Group", fontsize=10)
+                            ax.set_xlabel("Group", fontsize=8)
+                            ax.set_ylabel(metric, fontsize=8)
+                            ax.grid(axis="y", linestyle="--", alpha=0.5)
+                            plt.xticks(rotation=45, ha="right", fontsize=7)
+                            plt.tight_layout()
+
+                            img_id = uuid.uuid4().hex
+                            img_path = f"/tmp/chart_{img_id}.png"
+                            fig.savefig(img_path, dpi=200, bbox_inches="tight")
+                            plt.close(fig)
+
+                            # Embed into PDF
+                            html += f"""
+                            <div style='text-align:center; margin:10px 0;'>
+                                <img src='file://{img_path}' style='width:90%; max-width:600px;' />
+                                <p style='font-size:9pt;'>{metric} Comparison</p>
+                            </div>
+                            """
+
+                    html += "<div style='page-break-after: avoid;'></div>"
+
             else:
                 html += "<p>No cell groups defined.</p>"
 
@@ -605,48 +655,3 @@ class ExperimentReportManager:
         HTML(string=html).write_pdf(pdf_filepath)
         return pdf_filepath
 
-### falta criar uma nova utilização da app, para retirar um relatório como se alguém tivesse alterado funções
-
-    def report_fig(self, stats_df, groups):
-        import matplotlib.pyplot as plt
-        import base64
-        from io import BytesIO
-        
-        metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
-        for _, metric in enumerate(metrics):
-            if metric not in stats_df.columns:
-                    continue
-
-            fig, ax = plt.subplots(figsize=(4, 3))
-
-            # Ensure colors follow the order of stats_df rows (groups)
-            # If the group's color is missing, fallback to a neutral gray.
-            colors = []
-            for grp in stats_df.index.astype(str):
-                color = groups.get(grp, {}).get("color")
-                if color is None:
-                    # fallback: try to find by substring match (in case keys differ)
-                    found = False
-                    for gname, ginfo in groups.items():
-                        if gname == grp or str(gname) == str(grp):
-                            color = ginfo.get("color")
-                            found = True
-                            break
-                    if not found:
-                        color = "#A0A0A0"
-                colors.append(color)
-
-            # Draw bar chart
-            ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
-            ax.set_title(f"{metric} by Group", fontsize=11)
-            ax.set_xlabel("Group", fontsize=9)
-            ax.set_ylabel(metric, fontsize=9)
-            ax.grid(axis="y", linestyle="--", alpha=0.6)
-
-            # Improve x-label readability
-            plt.xticks(rotation=45, ha="right", fontsize=9)
-            plt.tight_layout()
-            plt.close(fig)
-            tmpfile = BytesIO()
-            fig.savefig(tmpfile, format='png')
-            encoded = base64.b64encode(tmpfile.getvalue()).decode('utf-8')
