@@ -85,40 +85,89 @@ class Selector(BaseModel):
             "last_modified": datetime.fromtimestamp(stats.st_mtime).isoformat(),
         }
 
+    # def is_experiment(self) -> bool:
+    #     """
+    #     Validates whether the selected Excel file represents a recognizable experiment.
+
+    #     Validation steps:
+    #     - File must be `.xlsx`
+    #     - File must load into a non-empty DataFrame with at least 2 columns
+    #     - File must match a known plate format (12, 24, 48, or 96 wells)
+
+    #     Returns:
+    #         bool: True if file is a valid experiment, False otherwise.
+    #     """
+
+    #     if not self.filepath or not self.filepath.endswith(".xlsx"):
+    #         return False
+
+    #     try:
+    #         experiment = Experiment.create_experiment_from_file(self.filepath)
+    #         df = experiment.dataframe
+
+    #         if df.empty or df.shape[1] < 2:
+    #             return False
+
+    #         subdatasets, plate_type = Experiment.split_into_subdatasets(df)
+    #         if subdatasets:
+    #             self.dataframe = df
+    #             return True
+
+    #         st.warning("File does not match any known plate format.")
+    #         return False
+
+    #     except Exception as e:
+    #         st.error(f"Error processing file: {e}")
+    #         return False
+
+
     def is_experiment(self) -> bool:
         """
-        Validates whether the selected Excel file represents a recognizable experiment.
+        Determines whether the selected Excel file is a valid experiment.
 
-        Validation steps:
-        - File must be `.xlsx`
-        - File must load into a non-empty DataFrame with at least 2 columns
-        - File must match a known plate format (12, 24, 48, or 96 wells)
-
-        Returns:
-            bool: True if file is a valid experiment, False otherwise.
+        Compatible with the NEW Experiment class:
+        - Accepts Synergy H1 exports
+        - Accepts any file that contains readable plate data (A–H rows)
+        - Accepts any file with extractable metadata or multiple reads
         """
 
-        if not self.filepath or not self.filepath.endswith(".xlsx"):
+        if not self.filepath or not self.filepath.lower().endswith((".xlsx", ".xls")):
             return False
 
         try:
+            # Build experiment using the NEW parser
             experiment = Experiment.create_experiment_from_file(self.filepath)
             df = experiment.dataframe
 
-            if df.empty or df.shape[1] < 2:
+            # 1. Must not be empty
+            if df.empty:
                 return False
 
-            subdatasets, plate_type = Experiment.split_into_subdatasets(df)
-            if subdatasets:
+            # 2. New-style plate_reader files: detect extracted reads
+            has_reads = len(experiment.reads) > 0
+
+            # 3. Detect metadata (Software Version, Reader Type, etc.)
+            has_metadata = len(experiment.metadata) > 0
+
+            # 4. Detect old-style plates: A–H in first column
+            first_col = df.iloc[:, 0].astype(str).str.strip().str.upper()
+            unique_letters = set(first_col)
+            has_plate_rows = bool(unique_letters.intersection({"A","B","C","D","E","F","G","H"}))
+
+            # -----------------------------------------
+            # FINAL CLASSIFICATION
+            # -----------------------------------------
+            if has_reads or has_metadata or has_plate_rows:
                 self.dataframe = df
                 return True
 
-            st.warning("File does not match any known plate format.")
             return False
 
         except Exception as e:
             st.error(f"Error processing file: {e}")
             return False
+
+
 
     def save_tracker(self, extra_data: dict | None = None):
         """

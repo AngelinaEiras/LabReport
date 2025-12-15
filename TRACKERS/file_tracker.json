@@ -1,15 +1,15 @@
 {
-    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx": {
-        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx",
-        "name": "20250514_PB.xlsx",
+    "/home/angelina/Desktop/final_LabReport/tests/20230802_PBval_run1.xlsx": {
+        "filepath": "/home/angelina/Desktop/final_LabReport/tests/20230802_PBval_run1.xlsx",
+        "name": "20230802_PBval_run1.xlsx",
         "metadata": {
-            "size": 18419,
-            "created": "2025-10-24T01:24:13.690028",
-            "last_modified": "2025-10-24T01:24:03.601977"
+            "size": 28201,
+            "created": "2025-11-26T14:50:34.713037",
+            "last_modified": "2025-11-26T14:50:12.439214"
         },
         "note": "",
-        "creation_date": "2025-10-24T01:24:29.905286",
-        "last_modified": "2025-10-24T01:24:45.033201",
+        "creation_date": "2025-12-15T20:40:55.593573",
+        "last_modified": "2025-12-15T20:41:00.258422",
         "is_experiment": true
     }
 }
