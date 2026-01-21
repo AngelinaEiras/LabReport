@@ -85,42 +85,6 @@ class Selector(BaseModel):
             "last_modified": datetime.fromtimestamp(stats.st_mtime).isoformat(),
         }
 
-    # def is_experiment(self) -> bool:
-    #     """
-    #     Validates whether the selected Excel file represents a recognizable experiment.
-
-    #     Validation steps:
-    #     - File must be `.xlsx`
-    #     - File must load into a non-empty DataFrame with at least 2 columns
-    #     - File must match a known plate format (12, 24, 48, or 96 wells)
-
-    #     Returns:
-    #         bool: True if file is a valid experiment, False otherwise.
-    #     """
-
-    #     if not self.filepath or not self.filepath.endswith(".xlsx"):
-    #         return False
-
-    #     try:
-    #         experiment = Experiment.create_experiment_from_file(self.filepath)
-    #         df = experiment.dataframe
-
-    #         if df.empty or df.shape[1] < 2:
-    #             return False
-
-    #         subdatasets, plate_type = Experiment.split_into_subdatasets(df)
-    #         if subdatasets:
-    #             self.dataframe = df
-    #             return True
-
-    #         st.warning("File does not match any known plate format.")
-    #         return False
-
-    #     except Exception as e:
-    #         st.error(f"Error processing file: {e}")
-    #         return False
-
-
     def is_experiment(self) -> bool:
         """
         Determines whether the selected Excel file is a valid experiment.

@@ -204,7 +204,7 @@ if file_data:
 
 
         # === Actions Menu ===
-        with cols[4].expander("⚡ Actions", expanded=False):
+        with cols[4].expander("Actions", expanded=False):
             action_cols = st.columns(3)
 
             # Open file with OS default application

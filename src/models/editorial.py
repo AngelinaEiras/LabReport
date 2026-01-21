@@ -51,7 +51,7 @@
 #         """Loads editor tracker from disk, handles corruption."""
 #         if os.path.exists(self.TRACKER_FILE_E):
 #             try:
-#                 with open(self.TRACKER_FILE_E, "r") as file:
+#                 with open(self.TRACKER_FILE_E, "row") as file:
 #                     return json.load(file)
 #             except json.JSONDecodeError:
 #                 st.error("Editor file tracker corrupted. Resetting.")
@@ -66,7 +66,7 @@
 #         """Loads experiments from the main tracker file into session state."""
 #         if os.path.exists(self.TRACKER_FILE):
 #             try:
-#                 with open(self.TRACKER_FILE, "r") as file:
+#                 with open(self.TRACKER_FILE, "row") as file:
 #                     tracker_data = json.load(file)
 #                     # st.write("Loaded tracker data:", tracker_data)  # Add this line ################# DEBUG
 #                 st.session_state.experiments_list = [
@@ -106,7 +106,7 @@
 
 #     def safe_key(self, name):
 #         """Sanitize a string to use as a Streamlit widget key."""
-#         return re.sub(r'\W+', '_', name)
+#         return re.sub(row'\W+', '_', name)
 
 #     # === Main Run Method ===
 #     def run(self):
@@ -657,481 +657,914 @@
 #                     st.pyplot(fig)
 
 
+# ==========================================================
+# IMPORTS
+# ==========================================================
 import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime
-import time
-import matplotlib.pyplot as plt
-import numpy as np
 import re
+from datetime import datetime
+import numpy as np
+import matplotlib.pyplot as plt
 import html as _html
+
 from st_table_select_cell import st_table_select_cell
 from src.models.experiment import Experiment
 
 
+# ==========================================================
+# EDITOR CLASS
+# ==========================================================
 class Editor:
     """
-    NEW Editor compatible with the new Experiment class.
+    Streamlit UI for interacting with Experiment reads.
 
-    Main differences:
-    - No subdatasets.
-    - Each READ from experiment.reads becomes an editable dataset.
-    - Tabs per read (modern UI).
-    - Metadata panel added.
-    - Heatmap preview for each read.
-    - Group selection + stats unchanged and fully preserved.
+    High-level responsibilities:
+    -----------------------------
+    • Load experiments from tracker
+    • Display metadata and raw Excel
+    • Iterate through Experiment.reads
+    • Allow interactive cell selection
+    • Create, rename, delete cell groups
+    • Persist groups, statistics, and colors
+    • Render statistics and visualizations
+
+    This class does NOT parse Excel files itself.
+    That responsibility lives entirely in Experiment.
     """
 
+    # ------------------------------------------------------
+    # INITIALIZATION
+    # ------------------------------------------------------
     def __init__(self):
-        self.TRACKER_FILE = "TRACKERS/file_tracker.json"
-        self.TRACKER_FILE_E = "TRACKERS/editor_file_tracker.json"
+        # Main tracker lists all files known to the system
+        self.MAIN_TRACKER = "TRACKERS/file_tracker.json"
 
-        self.file_data = self.load_tracker()
+        # Editor tracker stores UI-specific state (groups, edits, stats)
+        self.EDITOR_TRACKER = "TRACKERS/editor_file_tracker.json"
 
+        # Load persisted editor data (or initialize empty)
+        self.editor_data = self._load_editor_tracker()
+
+        # Load experiment list once per session
         if "experiments_list" not in st.session_state:
-            self.load_experiment_list()
+            self._load_experiment_list()
 
-    # -------------------------------------------------------------
-    # TRACKER FILE HANDLING
-    # -------------------------------------------------------------
-    def load_tracker(self):
-        if os.path.exists(self.TRACKER_FILE_E):
+    # ------------------------------------------------------
+    # TRACKER MANAGEMENT
+    # ------------------------------------------------------
+    def _load_editor_tracker(self) -> dict:
+        """Load editor-specific persistent state from disk."""
+        if os.path.exists(self.EDITOR_TRACKER):
             try:
-                with open(self.TRACKER_FILE_E, "r") as f:
+                with open(self.EDITOR_TRACKER, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
-                st.error("Editor tracker corrupted. Resetting.")
-                os.remove(self.TRACKER_FILE_E)
-                return {}
+            except Exception:
+                # Corrupted tracker → remove and reset
+                os.remove(self.EDITOR_TRACKER)
         return {}
 
-    def save_tracker(self):
-        try:
-            with open(self.TRACKER_FILE_E, "w", encoding="utf-8") as f:
-                json.dump(self.file_data, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            st.error(f"Failed saving editor tracker: {e}")
+    def _save_editor_tracker(self):
+        """Persist editor state safely to disk."""
+        with open(self.EDITOR_TRACKER, "w", encoding="utf-8") as f:
+            json.dump(self.editor_data, f, indent=4, ensure_ascii=False)
 
-    def load_experiment_list(self):
-        if os.path.exists(self.TRACKER_FILE):
-            try:
-                with open(self.TRACKER_FILE, "r") as f:
-                    data = json.load(f)
-                st.session_state.experiments_list = [
-                    path for path, info in data.items()
-                    if info.get("is_experiment", False)
-                ]
-            except:
-                st.session_state.experiments_list = []
-        else:
+    def _load_experiment_list(self):
+        """Load available experiment paths from the main tracker."""
+        if not os.path.exists(self.MAIN_TRACKER):
             st.session_state.experiments_list = []
+            return
 
-    # -------------------------------------------------------------
-    # UTILS
-    # -------------------------------------------------------------
-    def index_to_letter(self, idx):
-        letters = ""
-        while idx >= 0:
-            letters = chr(65 + (idx % 26)) + letters
-            idx = (idx // 26) - 1
-        return letters
+        with open(self.MAIN_TRACKER, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    def calculate_statistics(self, group_df):
-        numeric = pd.to_numeric(group_df["value"], errors="coerce").dropna()
-        if numeric.empty:
-            return {"Error": "No numeric values"}
+        st.session_state.experiments_list = [
+            path for path, info in data.items() if info.get("is_experiment")
+        ]
+
+    # ------------------------------------------------------
+    # SMALL UTILITIES
+    # ------------------------------------------------------
+    @staticmethod
+    def index_to_letter(idx: int) -> str:
+        """Convert a zero-based row index into Excel-style row letter."""
+        return chr(65 + idx)
+
+    @staticmethod
+    def calculate_statistics(group_df: pd.DataFrame) -> dict:
+        """
+        Compute descriptive statistics from selected cells.
+        Only numeric values are considered.
+        """
+        values = pd.to_numeric(group_df["value"], errors="coerce").dropna()
+        if values.empty:
+            return {"Error": "No numeric data"}
+
         return {
-            "Mean": numeric.mean(),
-            "Standard Deviation": numeric.std(),
-            "Coefficient of Variation": numeric.std() / numeric.mean() if numeric.mean() != 0 else None,
-            "Min": numeric.min(),
-            "Max": numeric.max(),
+            "Mean": values.mean(),
+            "Standard Deviation": values.std(),
+            "Coefficient of Variation": values.std() / values.mean(),
+            "Min": values.min(),
+            "Max": values.max(),
         }
 
-    def safe_key(self, txt):
-        return re.sub(r"\W+", "_", txt)
+    # def _normalize_read_store(self, store: dict, read_df: pd.DataFrame) -> dict:
+    #     """
+    #     Backward-compatible schema normalizer.
 
-    # -------------------------------------------------------------
-    # MAIN UI ENTRY
-    # -------------------------------------------------------------
+    #     Supports old tracker keys:
+    #     - "table" (old single-table storage)
+    #     - "groups" (new key you started using)
+
+    #     Ensures new canonical schema exists:
+    #     - "original_table"
+    #     - "edited_table"
+    #     - "renamed_columns"
+    #     - "cell_groups"
+    #     """
+
+    #     # --- renamed columns ---
+    #     store.setdefault("renamed_columns", {})
+
+    #     # --- groups: make sure canonical key exists ---
+    #     if "cell_groups" not in store:
+    #         # If the store used the newer "groups" key, adopt it
+    #         if "groups" in store and isinstance(store["groups"], dict):
+    #             store["cell_groups"] = store["groups"]
+    #         else:
+    #             store["cell_groups"] = {}
+
+    #     # Keep "groups" as an alias too (optional, but helps older code)
+    #     store["groups"] = store["cell_groups"]
+
+    #     # --- tables: handle old "table" format ---
+    #     if "edited_table" not in store:
+    #         if "table" in store:
+    #             store["edited_table"] = store["table"]
+    #         else:
+    #             store["edited_table"] = read_df.to_dict(orient="records")
+
+    #     if "original_table" not in store:
+    #         # If we have old "table", treat it as original too (best effort)
+    #         if "table" in store:
+    #             store["original_table"] = store["table"]
+    #         else:
+    #             store["original_table"] = read_df.to_dict(orient="records")
+
+    #     return store
+    def _normalize_read_store(self, store: dict, read_df: pd.DataFrame) -> dict:
+        """
+        Backward-compatible schema normalizer.
+
+        Accepts old keys:
+        - table
+        - groups
+        Produces canonical keys:
+        - original_table
+        - edited_table
+        - renamed_columns
+        - cell_groups
+        """
+        if store is None:
+            store = {}
+
+        store.setdefault("renamed_columns", {})
+
+        # --- groups ---
+        if "cell_groups" not in store:
+            if "groups" in store and isinstance(store["groups"], dict):
+                store["cell_groups"] = store["groups"]
+            else:
+                store["cell_groups"] = {}
+
+        # Alias for safety
+        store["groups"] = store["cell_groups"]
+
+        # --- tables (old schema: "table") ---
+        if "edited_table" not in store:
+            if "table" in store:
+                store["edited_table"] = store["table"]
+            else:
+                store["edited_table"] = read_df.to_dict(orient="records")
+
+        if "original_table" not in store:
+            if "table" in store:
+                store["original_table"] = store["table"]
+            else:
+                store["original_table"] = read_df.to_dict(orient="records")
+
+        return store
+
+
+
+    def _ensure_experiment_in_tracker(self, exp_path: str, exp: Experiment):
+        """
+        Ensure editor tracker has:
+        - source info
+        - metadata
+        - reads dict
+        and imports reads (original+edited) if missing.
+        """
+        exp_entry = self.editor_data.setdefault(exp_path, {})
+
+        # --- source info ---
+        try:
+            mtime = os.path.getmtime(exp_path)
+        except Exception:
+            mtime = None
+
+        exp_entry.setdefault("source", {})
+        exp_entry["source"]["path"] = exp_path
+        exp_entry["source"]["mtime"] = mtime
+        exp_entry.setdefault("imported_at", str(datetime.now()))
+
+        # --- metadata snapshot (persist it!) ---
+        exp_entry["metadata"] = exp.metadata if isinstance(exp.metadata, dict) else {}
+
+        # --- reads container ---
+        exp_entry.setdefault("reads", {})
+
+        # --- import reads once (do NOT overwrite user edits) ---
+        for read_name, read_df in exp.reads.items():
+            read_store = exp_entry["reads"].setdefault(read_name, {})
+            read_store = self._normalize_read_store(read_store, read_df)
+
+            # If this is the very first time we see this read, lock snapshots
+            if "original_table" not in read_store or not read_store["original_table"]:
+                read_store["original_table"] = read_df.to_dict(orient="records")
+
+            if "edited_table" not in read_store or not read_store["edited_table"]:
+                read_store["edited_table"] = read_df.to_dict(orient="records")
+
+        self._save_editor_tracker()
+
+
+
+    # ------------------------------------------------------
+    # MAIN ENTRY POINT
+    # ------------------------------------------------------
     def run(self):
-        st.title("Experiment Editor")
+        """Main Streamlit entry point."""
+        st.title("🧪 Experiment Editor")
 
         exp_path = st.selectbox(
-            "Choose an experiment:",
+            "Select experiment:",
             st.session_state.experiments_list,
-            format_func=lambda x: os.path.basename(x),
-            key="exp_selector"
+            format_func=lambda p: os.path.basename(p),
         )
 
         if not exp_path:
             return
 
-        if st.button("Delete Experiment"):
-            st.session_state.confirm_delete_exp = exp_path
-
-        if st.session_state.get("confirm_delete_exp") == exp_path:
-            self.confirm_delete_experiment(exp_path)
-            return
-
         self.render_experiment(exp_path)
 
-    # -------------------------------------------------------------
-    # DELETE EXPERIMENT
-    # -------------------------------------------------------------
-    def confirm_delete_experiment(self, exp):
-        st.warning(f"Delete experiment {os.path.basename(exp)}?")
-        c1, c2 = st.columns(2)
-        if c1.button("Yes"):
-            if exp in self.file_data:
-                del self.file_data[exp]
-            if exp in st.session_state.experiments_list:
-                st.session_state.experiments_list.remove(exp)
-            self.save_tracker()
-            st.success("Deleted.")
-            del st.session_state.confirm_delete_exp
-            st.rerun()
-        if c2.button("No"):
-            del st.session_state.confirm_delete_exp
-            st.rerun()
+    # ------------------------------------------------------
+    # EXPERIMENT VIEW
+    # ------------------------------------------------------
+    # def render_experiment(self, exp_path: str):
+    #     """Render metadata, raw Excel, and read selector."""
+    #     exp = Experiment.create_experiment_from_file(exp_path)
 
-    # -------------------------------------------------------------
-    # MAIN EXPERIMENT DISPLAY
-    # -------------------------------------------------------------
-    def render_experiment(self, exp_path):
+    #     # Ensure tracker structure exists
+    #     self.editor_data.setdefault(exp_path, {"reads": {}})
+
+    #     # ---------------- Metadata ----------------
+    #     with st.expander("Metadata", expanded=True):
+    #         for k, v in exp.metadata.items():
+
+    #             # SINGLE LINE → same row
+    #             if isinstance(v, list) and len(v) == 1:
+    #                 st.markdown(f"**{k}** {v[0]}")
+
+    #             # MULTI-LINE SECTION
+    #             elif isinstance(v, list):
+    #                 st.markdown(f"**{k}**")
+    #                 for line in v:
+    #                     st.markdown(line)
+
+    #             # FALLBACK
+    #             else:
+    #                 st.markdown(f"**{k}** {v}")
+
+
+    #     # ---------------- Raw Excel ----------------
+    #     with st.expander("Raw Excel file"):
+    #         st.dataframe(exp.dataframe, use_container_width=True)
+
+    #     # ---------------- Read selector ----------------
+    #     if not exp.reads:
+    #         st.error("No reads detected.")
+    #         return
+
+    #     read_name = st.selectbox(
+    #         "Select read:",
+    #         list(exp.reads.keys()),
+    #         key=f"read_selector_{exp_path}",
+    #     )
+
+    #     self.render_read(exp_path, read_name, exp.reads[read_name])
+    def render_experiment(self, exp_path: str):
+        """Render metadata, raw Excel, and read selector."""
         exp = Experiment.create_experiment_from_file(exp_path)
-
-        # ------------------------------
-        # METADATA PANEL
-        # ------------------------------
-        with st.expander("📄 Metadata", expanded=True):
-            if exp.metadata:
-                st.table(pd.DataFrame(exp.metadata, index=[0]).T)
-            else:
-                st.info("No metadata found.")
-
-        st.write("---")
+        self.editor_data.setdefault(exp_path, {"reads": {}})
+        self.editor_data[exp_path]["metadata"] = exp.metadata  # ✅ saved for report
+        self._save_editor_tracker()
 
 
-        # ------------------------------
-        # RAW / UNPROCESSED FILE PREVIEW
-        # ------------------------------
-        with st.expander("📂 Raw Excel file (unprocessed)", expanded=False):
-            st.caption(
-                "This is the original content of the Excel file (first sheet), "
-                "before any parsing or read extraction."
-            )
-            st.dataframe(
-                exp.dataframe,
-                use_container_width=True,
-                height=400
-            )
+        # ✅ Persist EVERYTHING into editor tracker
+        self._ensure_experiment_in_tracker(exp_path, exp)
 
-        # ------------------------------
-        # READ TABS
-        # ------------------------------
-        read_names = list(exp.reads.keys())
+        exp_entry = self.editor_data[exp_path]
 
-        if not read_names:
-            st.error("No reads found in this experiment file.")
+        # ---------------- Metadata (from tracker now!) ----------------
+        with st.expander("Metadata", expanded=True):
+            for k, v in exp_entry.get("metadata", {}).items():
+                if isinstance(v, list) and len(v) == 1:
+                    st.markdown(f"**{k}** {v[0]}")
+                elif isinstance(v, list):
+                    st.markdown(f"**{k}**")
+                    for line in v:
+                        st.markdown(line)
+                else:
+                    st.markdown(f"**{k}** {v}")
+
+        # ---------------- Raw Excel ----------------
+        with st.expander("Raw Excel file"):
+            st.dataframe(exp.dataframe, use_container_width=True)
+
+        # ---------------- Read selector ----------------
+        reads_dict = exp_entry.get("reads", {})
+        if not reads_dict:
+            st.error("No reads detected.")
             return
 
-        tabs = st.tabs(read_names)
+        read_name = st.selectbox(
+            "Select read:",
+            list(reads_dict.keys()),
+            key=f"read_selector_{exp_path}",
+        )
 
-        for tab, read_name in zip(tabs, read_names):
-            with tab:
-                self.render_read(exp_path, exp, read_name)
-
-    # -------------------------------------------------------------
-    # RENDER A SINGLE READ
-    # -------------------------------------------------------------
-    def render_read(self, exp_path, experiment, read_name):
-
-        # ------------------------------
-        # Load or initialize tracker entry
-        # ------------------------------
-        self.file_data.setdefault(exp_path, {})
-        read_data = self.file_data[exp_path].setdefault(read_name, {
-            "read_df": experiment.reads[read_name].to_dict(orient="records"),
-            "cell_groups": {},
-            "renamed_columns": {},
-            "others": "",
-        })
-        self.save_tracker()
-
-        # ------------------------------
-        # BUILD DATAFRAME
-        # ------------------------------
-        df = pd.DataFrame(read_data["read_df"])
-
-        # ------------------------------
-        # Column renaming UI
-        # ------------------------------
-        with st.expander("🔤 Rename Columns (unique names required)", expanded=False):
-
-            renamed = read_data.get("renamed_columns", {})
-            df = df.rename(columns=renamed)
-
-            col_counts = df.columns.value_counts()
-            new_names = {}
-
-            for i, col in enumerate(df.columns):
-                is_duplicate = col_counts[col] > 1
-
-                if is_duplicate:
-                    st.markdown(
-                        f"<span style='color:red;font-weight:bold'>⚠️ Duplicate: {col}</span>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(f"Rename **{col}**:")
-
-                new_name = st.text_input(
-                    label="",
-                    value=col,
-                    key=self.safe_key(f"rename_{exp_path}_{read_name}_{col}_{i}")
-                )
-
-                new_names[col] = new_name
-
-            # ---- Validation ----
-            if len(set(new_names.values())) != len(new_names.values()):
-                st.error("❌ Column names must be unique. Please fix duplicates.")
-            else:
-                if new_names != renamed:
-                    df = df.rename(columns=new_names)
-                    read_data["renamed_columns"] = new_names
-                    read_data["read_df"] = df.to_dict(orient="records")
-                    self.save_tracker()
-                    st.success("✅ Column names updated.")
+        # Use the stored read tables (not exp.reads directly)
+        stored_read_df = pd.DataFrame(reads_dict[read_name]["edited_table"])
+        self.render_read(exp_path, read_name, stored_read_df)
 
 
 
-        # ------------------------------
-        # Preview Heatmap
-        # ------------------------------
-        with st.expander("🔬 Heatmap Preview", expanded=False):
-            numeric = df.drop(columns=["Row"], errors="ignore").apply(pd.to_numeric, errors="coerce")
-            fig, ax = plt.subplots(figsize=(5, 4))
-            cax = ax.imshow(numeric, aspect="auto")
-            plt.colorbar(cax)
-            st.pyplot(fig)
+    # ------------------------------------------------------
+    # READ VIEW
+    # ------------------------------------------------------
+    # def render_read(self, exp_path: str, read_name: str, read_df: pd.DataFrame):
+    #     """Render a single read table and its group logic."""
+    #     st.header(f"📊 Read: {read_name}")
 
-        st.write("---")
+    #     # Ensure experiment bucket exists
+    #     self.editor_data.setdefault(exp_path, {"reads": {}})
 
-        # ------------------------------
-        # Editable Table
-        # ------------------------------
-        st.subheader(f"Editable Table for {read_name}")
+    #     # ✅ IMPORTANT: Use canonical keys (cell_groups)
+    #     read_store = self.editor_data[exp_path]["reads"].setdefault(
+    #         read_name,
+    #         {
+    #             "original_table": read_df.to_dict(orient="records"),
+    #             "edited_table": read_df.to_dict(orient="records"),
+    #             "renamed_columns": {},
+    #             "cell_groups": {},   # ✅ canonical
+    #         },
+    #     )
+
+    #     # ✅ MIGRATE / NORMALIZE old tracker entries safely
+    #     read_store = self._normalize_read_store(read_store, read_df)
+    #     self._save_editor_tracker()
+
+    #     # Build dataframe from edited version
+    #     df = pd.DataFrame(read_store["edited_table"]).rename(
+    #         columns=read_store["renamed_columns"]
+    #     )
+
+
+    #     # ---------------- Editable table ----------------
+    #     edited_df = st.data_editor(
+    #         df,
+    #         use_container_width=True,
+    #         key=f"editor_{exp_path}_{read_name}",
+    #     )
+
+    #     # Save edits ONLY into edited_table (never overwrite original_table)
+    #     read_store["edited_table"] = edited_df.to_dict(orient="records")
+    #     self._save_editor_tracker()
+
+    #     # ---------------- Group logic ----------------
+    #     self.handle_cell_selection(exp_path, read_name, edited_df, read_store)
+    #     self.display_groups(edited_df, read_store)
+    #     self.render_statistics(read_store)
+    def render_read(self, exp_path: str, read_name: str, read_df: pd.DataFrame):
+        st.header(f"Read: {read_name}")
+
+        exp_entry = self.editor_data.setdefault(exp_path, {"reads": {}, "metadata": {}})
+        exp_entry.setdefault("reads", {})
+
+        read_store = exp_entry["reads"].setdefault(read_name, {})
+        read_store = self._normalize_read_store(read_store, read_df)
+        self._save_editor_tracker()
+
+        # Work on edited table
+        df = pd.DataFrame(read_store["edited_table"]).rename(columns=read_store["renamed_columns"])
+
+        # Optional: show immutable original snapshot
+        with st.expander("📄 Original read (immutable)", expanded=False):
+            st.dataframe(pd.DataFrame(read_store["original_table"]), use_container_width=True)
 
         edited_df = st.data_editor(
             df,
             use_container_width=True,
-            key=f"editor_{exp_path}_{read_name}"
+            key=f"editor_{exp_path}_{read_name}",
         )
 
-        read_data["read_df"] = edited_df.to_dict(orient="records")
-        self.save_tracker()
+        # Save edited table
+        read_store["edited_table"] = edited_df.to_dict(orient="records")
+        self._save_editor_tracker()
 
-        # ------------------------------
-        # Cell Selection + Grouping
-        # ------------------------------
-        self.handle_cell_selection(exp_path, read_name, edited_df, read_data)
+        # Groups + stats
+        self.handle_cell_selection(exp_path, read_name, edited_df, read_store)
+        self.display_groups(edited_df, read_store)
+        self.render_statistics(read_store, exp_path=exp_path, read_name=read_name) # self.render_statistics(read_store)
 
-        # ------------------------------
-        # Saved Groups
-        # ------------------------------
-        self.display_saved_groups(read_data)
 
-        # ------------------------------
-        # Statistics Charts
-        # ------------------------------
-        self.statistic_graphics(read_data)
 
-    # -------------------------------------------------------------
-    # CELL SELECTION + GROUPING
-    # -------------------------------------------------------------
-    def handle_cell_selection(self, exp_path, read_name, df, read_data):
+    # ------------------------------------------------------
+    # CELL SELECTION & GROUPING
+    # ------------------------------------------------------
+    def handle_cell_selection(self, exp, read, df, store):
+        """Interactive cell selection and group creation."""
         st.subheader("Select Cells to Create Groups")
-        st.caption("Click on cells in the table above to build a group.")
 
-        # ---- scoped session keys (per experiment + read) ----
-        group_key = self.safe_key(f"current_group_{exp_path}_{read_name}")
-        name_key  = self.safe_key(f"group_name_{exp_path}_{read_name}")
+        group_key = f"group_{exp}_{read}"
+        name_key = f"group_name_{exp}_{read}"
 
-        if group_key not in st.session_state:
-            st.session_state[group_key] = []
-        if name_key not in st.session_state:
-            st.session_state[name_key] = ""
+        st.session_state.setdefault(group_key, [])
+        st.session_state.setdefault(name_key, "")
 
-        # ---- cell selection ----
-        sel = st_table_select_cell(df)
-        if sel:
-            r = int(sel["rowId"])
-            col = df.columns[sel["colIndex"]]
-            val = df.iat[r, sel["colIndex"]]
-            val = val.item() if isinstance(val, np.generic) else val
+        selected = st_table_select_cell(df)
 
-            info = {
-                "row_index": r,
-                "row": self.index_to_letter(r),
-                "column": col,
+        if selected:
+            row = int(selected["rowId"])
+            col = df.columns[selected["colIndex"]]
+            val = df.iat[row, selected["colIndex"]]
+            val = val.item() if isinstance(val, np.generic) else str(val)
+
+            cell_info = {
                 "value": val,
+                "row_index": row,
+                "row": self.index_to_letter(row),
+                "column": col,
             }
 
-            if info not in st.session_state[group_key]:
-                st.session_state[group_key].append(info)
-                st.success(f"Added {info}")
+            if cell_info not in st.session_state[group_key]:
+                st.session_state[group_key].append(cell_info)
 
-        # ---- show current group ----
+        # ---- Unsaved group preview ----
         if st.session_state[group_key]:
-            st.write("### Current Group (unsaved)")
+            st.write("### Unsaved group")
             st.table(pd.DataFrame(st.session_state[group_key]))
 
             st.session_state[name_key] = st.text_input(
-                "Group Name:",
+                "Group name:",
                 value=st.session_state[name_key],
-                key=f"input_{name_key}"
             )
 
-            c1, c2 = st.columns(2)
+            col_save, col_clear = st.columns(2)
 
-            with c1:
-                if st.button("Save Group", key=f"save_{name_key}"):
-                    name = st.session_state[name_key].strip()
-                    if not name:
-                        st.warning("Enter a group name.")
-                    elif name in read_data["cell_groups"]:
-                        st.error("Group already exists.")
-                    else:
-                        stats = self.calculate_statistics(
+            with col_save:
+                if st.button("Save group"):
+                    name = st.session_state[name_key]
+                    if not name or name in store["cell_groups"]:
+                        st.error("Invalid or duplicate group name.")
+                        return
+
+                    store["cell_groups"][name] = {
+                        "cells": st.session_state[group_key],
+                        "stats": self.calculate_statistics(
                             pd.DataFrame(st.session_state[group_key])
-                        )
+                        ),
+                        "color": self._assign_color(store["cell_groups"]),
+                    }
 
-                        palette = [
-                            "#FFB3BA","#FFDFBA","#FFFFBA","#BAFFC9","#BAE1FF",
-                            "#E6B3FF","#FFD9E6","#C2FFAD","#BFFCC6","#AFCBFF"
-                        ]
-                        used = [g.get("color") for g in read_data["cell_groups"].values()]
-                        free = [c for c in palette if c not in used]
-                        color = free[0] if free else palette[len(used) % len(palette)]
+                    st.session_state[group_key] = []
+                    st.session_state[name_key] = ""
+                    self._save_editor_tracker()
+                    st.rerun()
 
-                        read_data["cell_groups"][name] = {
-                            "cells": st.session_state[group_key].copy(),
-                            "stats": stats,
-                            "color": color
-                        }
-
-                        self.save_tracker()
-                        st.success("Group saved.")
-                        st.session_state[group_key] = []
-                        st.session_state[name_key] = ""
-                        st.rerun()
-
-            with c2:
-                if st.button("Clear", key=f"clear_{name_key}"):
+            with col_clear:
+                if st.button("Clear selection"):
                     st.session_state[group_key] = []
                     st.session_state[name_key] = ""
                     st.rerun()
 
-
-    # -------------------------------------------------------------
-    # SAVED GROUPS + HIGHLIGHTING
-    # -------------------------------------------------------------
-    def display_saved_groups(self, read_data):
-        groups = read_data.get("cell_groups", {})
+    # ------------------------------------------------------
+    # GROUP DISPLAY (FULL FEATURED)
+    # ------------------------------------------------------
+    def display_groups(self, df, store):
+        """
+        Display:
+        • highlighted table
+        • per-group statistics
+        • delete + rename controls
+        • expandable list of selected cells
+        """
+        groups = store["cell_groups"]
         if not groups:
             return
+
+        # ---- Highlighted table ----
+        st.subheader("Highlighted Groups")
+        st.dataframe(self.highlight_cells(df, groups), use_container_width=True)
+        self.render_legend(groups)
 
         st.write("---")
         st.subheader("Saved Groups")
 
-        df = pd.DataFrame(read_data["read_df"]).reset_index(drop=True)
+        # ---- Per-group UI ----
+        for g_name, g_data in groups.items():
+            color = g_data.get("color", "#DDD")
+            cols = st.columns([2, 6, 1, 2])
 
-        # Highlight table
-        styled = self.highlight_cells(df, groups)
-        st.dataframe(styled, use_container_width=True)
-        self.render_legend(groups)
+            # Group name + color
+            with cols[0]:
+                st.markdown(f"### {g_name}")
+                st.markdown(
+                    f"<div style='width:120px;height:20px;"
+                    f"background:{color};border-radius:6px;"
+                    f"border:1px solid #555'></div>",
+                    unsafe_allow_html=True,
+                )
 
-        # Per-group stats + rename/delete
-        for name, g in groups.items():
-            st.write(f"### Group: {name}")
+            # Statistics
+            with cols[1]:
+                st.markdown("**Statistics**")
+                stats = g_data.get("stats", {})
+                if stats and "Error" not in stats:
+                    st.table(pd.DataFrame(stats, index=["Value"]))
+                else:
+                    st.warning(stats.get("Error", "No stats available"))
 
-            st.table(pd.DataFrame(g["stats"], index=["value"]))
+            # Delete
+            # with cols[2]:
+            #     if st.button("**Delete**", key=f"delete_{g_name}"):
+            #         del store["cell_groups"][g_name]
+            #         self._save_editor_tracker()
+            #         st.rerun()
 
-            # rename
-            new = st.text_input(f"Rename {name}:", name,
-                                key=f"rename_{name}")
-            if new != name and new not in groups and st.button(f"Confirm Rename {name}"):
-                groups[new] = groups.pop(name)
-                self.save_tracker()
-                st.rerun()
+            with cols[2]:
+                if st.button("**Delete**", key=f"delete_group_{g_name}"):
+                    st.session_state.confirm_delete_group = {"group": g_name}
+                # Confirm deletion
+                if st.session_state.get("confirm_delete_group", {}).get("group") == g_name:
+                    st.warning(f"Confirm deletion of '{g_name}'?")
+                    col_yes, col_no = st.columns([2,2], gap="small")
+                    with col_yes:
+                        if st.button("Yes", key=f"confirm_del_yes_{g_name}"):
+                            del store["cell_groups"][g_name]
+                            self._save_editor_tracker()
+                            st.rerun()
+                    with col_no:
+                        if st.button("No", key=f"confirm_del_no_{g_name}"):
+                            del st.session_state.confirm_delete_group
+                            st.rerun()
+                    # In case deletion was requested, skip showing further info for this group this cycle
+                    continue
 
-            # delete
-            if st.button(f"Delete {name}"):
-                del groups[name]
-                self.save_tracker()
-                st.rerun()
+            # Rename
+            with cols[3]:
+                new_name = st.text_input(
+                    "**Rename**",
+                    value=g_name,
+                    key=f"rename_{g_name}",
+                )
+                if new_name != g_name and new_name not in groups:
+                    if st.button("✅ Confirm", key=f"confirm_{g_name}"):
+                        groups[new_name] = groups.pop(g_name)
+                        self._save_editor_tracker()
+                        st.rerun()
 
+            # Cell list (collapsed)
+            with st.expander("Selected cells"):
+                st.dataframe(pd.DataFrame(g_data["cells"]))
+
+            st.write("---")
+
+    # ------------------------------------------------------
+    # STYLING / STATISTICS
+    # ------------------------------------------------------
     def highlight_cells(self, df, groups):
-        style_map = pd.DataFrame("", index=df.index, columns=df.columns)
-
+        style = pd.DataFrame("", index=df.index, columns=df.columns)
         for g in groups.values():
-            color = g.get("color", "#FFC")
             for c in g["cells"]:
-                if c["column"] in df.columns:
-                    try:
-                        style_map.loc[c["row_index"], c["column"]] = f"background-color: {color}"
-                    except:
-                        pass
+                style.loc[c["row_index"], c["column"]] = (
+                    f"background-color: {g['color']}"
+                )
+        return df.style.apply(lambda _: style, axis=None)
 
-        return df.style.apply(lambda _: style_map, axis=None)
+
+    # # STATISTICS — CROSS-GROUP COMPARISON
+    # # ------------------------------------------------------
+    # def render_statistics(self, store):
+    #     """
+    #     Better cross-group stats visualization.
+
+    #     Shows:
+    #     1) Mean ± SD (error bars) in ONE chart
+    #     2) Boxplot of distributions in ONE chart (if enough numeric points exist)
+
+    #     Uses raw numeric values from each group's selected cells ("value") so the boxplot
+    #     actually reflects the underlying data (not just summary stats).
+    #     """
+    #     groups = store.get("cell_groups", {})
+    #     if not groups:
+    #         return
+
+    #     # -----------------------------------------
+    #     # Collect numeric values per group
+    #     # -----------------------------------------
+    #     group_names = []
+    #     group_values = []   # list of arrays
+    #     group_colors = []
+
+    #     for gname, gdata in groups.items():
+    #         cells = gdata.get("cells", [])
+    #         vals = pd.to_numeric(
+    #             pd.Series([c.get("value", None) for c in cells]),
+    #             errors="coerce"
+    #         ).dropna()
+
+    #         if len(vals) == 0:
+    #             continue
+
+    #         group_names.append(gname)
+    #         group_values.append(vals.values)
+    #         group_colors.append(gdata.get("color", "#999999"))
+
+    #     if not group_names:
+    #         st.info("No numeric values found in groups (cannot compare statistics).")
+    #         return
+
+    #     st.subheader("📊 Statistical Comparison")
+
+    #     # -----------------------------------------
+    #     # 1) Mean ± SD chart (single plot)
+    #     # -----------------------------------------
+    #     means = [float(pd.Series(v).mean()) for v in group_values]
+    #     sds   = [float(pd.Series(v).std(ddof=1)) if len(v) > 1 else 0.0 for v in group_values]
+
+    #     with st.expander("Mean ± SD (all groups)", expanded=True):
+    #         fig, ax = plt.subplots(figsize=(7, 4))
+
+    #         x = np.arange(len(group_names))
+
+    #         # Bars
+    #         ax.bar(x, means, color=group_colors)
+
+    #         # Error bars (SD)
+    #         ax.errorbar(
+    #             x, means, yerr=sds,
+    #             fmt="none",
+    #             ecolor="black",
+    #             elinewidth=1.5,
+    #             capsize=6,
+    #             capthick=1.5
+    #         )
+
+    #         ax.set_xticks(x)
+    #         ax.set_xticklabels(group_names, rotation=35, ha="right")
+    #         ax.set_ylabel("Value")
+    #         ax.set_title("Mean ± SD by Group")
+
+    #         ax.grid(axis="y", linestyle="--", alpha=0.4)
+    #         plt.tight_layout()
+    #         st.pyplot(fig)
+
+    #         # Optional: show the numbers in a table too
+    #         summary_df = pd.DataFrame({
+    #             "Mean": means,
+    #             "SD": sds,
+    #             "N": [len(v) for v in group_values],
+    #         }, index=group_names)
+    #         st.dataframe(summary_df, use_container_width=True)
+
+    #     # -----------------------------------------
+    #     # 2) Boxplot (single plot)
+    #     # -----------------------------------------
+    #     # Boxplots need at least a few points to be meaningful,
+    #     # but even N=2 is acceptable for a rough view.
+    #     with st.expander("Distribution per group (boxplot)", expanded=False):
+    #         fig, ax = plt.subplots(figsize=(7, 4))
+
+    #         bp = ax.boxplot(
+    #             group_values,
+    #             labels=group_names,
+    #             patch_artist=True,
+    #             showmeans=True,
+    #         )
+
+    #         # Color boxes safely
+    #         for box, c in zip(bp["boxes"], group_colors):
+    #             if hasattr(box, "set_facecolor"):
+    #                 box.set_facecolor(c)
+    #                 box.set_alpha(0.65)
+
+    #         # Median lines
+    #         for med in bp["medians"]:
+    #             med.set_color("black")
+    #             med.set_linewidth(1.5)
+
+    #         # Mean markers
+    #         for mean in bp.get("means", []):
+    #             mean.set_marker("o")
+    #             mean.set_markerfacecolor("black")
+    #             mean.set_markeredgecolor("black")
+    #             mean.set_markersize(5)
+
+    #         ax.set_ylabel("Value")
+    #         ax.set_title("Group Distributions (boxplot + mean)")
+    #         ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+    #         plt.xticks(rotation=35, ha="right")
+    #         plt.tight_layout()
+    #         st.pyplot(fig)
+
+    def render_statistics(self, store, exp_path=None, read_name=None):
+        """
+        Renders:
+        1) explicit stats table (Mean, SD, CV, Min, Max, N)
+        2) boxplot + mean±SD overlay
+        3) metric comparison charts (bar charts by metric)
+
+        Also caches everything into the tracker (store["report_payload"]["stats"])
+        so Report.py can offer checkboxes to include any part.
+        """
+        groups = store.get("cell_groups", {})
+        if not groups:
+            return
+
+        # --------------------------------------------------
+        # Build per-group numeric distributions from cells
+        # --------------------------------------------------
+        group_names = []
+        group_values = []
+        group_colors = []
+
+        for gname, gdata in groups.items():
+            cells = gdata.get("cells", [])
+            vals = []
+            for c in cells:
+                v = c.get("value", None)
+                v_num = pd.to_numeric(v, errors="coerce")
+                if pd.notna(v_num):
+                    vals.append(float(v_num))
+
+            if not vals:
+                continue
+
+            group_names.append(str(gname))
+            group_values.append(vals)
+            group_colors.append(gdata.get("color", "#CCCCCC"))
+
+        if not group_values:
+            st.info("No numeric statistics available (groups have no numeric cells).")
+            return
+
+        # --------------------------------------------------
+        # Stats table (explicit)
+        # --------------------------------------------------
+        rows = []
+        for name, vals in zip(group_names, group_values):
+            s = pd.Series(vals, dtype="float")
+            mean = s.mean()
+            sd = s.std(ddof=1) if len(s) > 1 else 0.0
+            rows.append({
+                "Group": name,
+                "N": int(len(s)),
+                "Mean": float(mean),
+                "Standard Deviation": float(sd),
+                "Coefficient of Variation": float(sd / mean) if mean != 0 else None,
+                "Min": float(s.min()),
+                "Max": float(s.max()),
+            })
+
+        stats_df = pd.DataFrame(rows).set_index("Group")
+
+        st.subheader("Statistical Comparison")
+
+        # 1) Stats table
+        with st.expander("Statistics table (explicit)", expanded=True):
+            st.dataframe(stats_df, use_container_width=True)
+
+        # 2) Boxplot + Mean ± SD overlay
+        with st.expander("Distribution (boxplot) + Mean ± SD", expanded=True):
+            fig, ax = plt.subplots(figsize=(8, 4))
+
+            bp = ax.boxplot(
+                group_values,
+                labels=group_names,
+                patch_artist=True,
+                showfliers=True
+            )
+            # color boxes
+            for patch, color in zip(bp["boxes"], group_colors):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.6)
+
+            means = [np.mean(v) for v in group_values]
+            sds = [np.std(v, ddof=1) if len(v) > 1 else 0.0 for v in group_values]
+            x = np.arange(1, len(group_values) + 1)
+
+            ax.errorbar(
+                x,
+                means,
+                yerr=sds,
+                fmt="o",
+                capsize=5,
+                linewidth=1,
+            )
+
+            ax.set_title("Group distributions with Mean ± SD overlay", fontsize=11)
+            ax.set_xlabel("Group", fontsize=9)
+            ax.set_ylabel("Value", fontsize=9)
+            ax.grid(axis="y", linestyle="--", alpha=0.4)
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            st.pyplot(fig)
+
+        # 3) Metric-comparison graphics (Mean/SD/CV/Min/Max)
+        with st.expander("Metric comparison charts (by group)", expanded=False):
+            metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
+            metric = st.selectbox(
+                "Choose metric to compare across groups:",
+                metrics,
+                key=f"metric_compare_{exp_path}_{read_name}" if exp_path and read_name else None
+            )
+
+            fig, ax = plt.subplots(figsize=(7, 3))
+            colors = [groups[g]["color"] if g in groups and "color" in groups[g] else "#CCCCCC"
+                    for g in stats_df.index.astype(str)]
+
+            ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
+            ax.set_title(f"{metric} by Group", fontsize=11)
+            ax.set_xlabel("Group", fontsize=9)
+            ax.set_ylabel(metric, fontsize=9)
+            ax.grid(axis="y", linestyle="--", alpha=0.4)
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            st.pyplot(fig)
+
+        # --------------------------------------------------
+        # Cache everything for Report (store raw data, not images)
+        # Report can regenerate plots for PDF.
+        # --------------------------------------------------
+        store.setdefault("report_payload", {})
+        store["report_payload"]["stats"] = {
+            "group_names": group_names,
+            "group_colors": {name: color for name, color in zip(group_names, group_colors)},
+            "distributions": {name: vals for name, vals in zip(group_names, group_values)},
+            "stats_table": stats_df.reset_index().to_dict(orient="records"),
+            "available_metrics": ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"],
+        }
+
+        # persist
+        self._save_editor_tracker()
+
+
+
+
+    # ------------------------------------------------------
+    # COLOR HANDLING
+    # ------------------------------------------------------
+    @staticmethod
+    def _assign_color(groups):
+        palette = [
+            "#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF",
+            "#E6B3FF", "#FFD9E6", "#C2FFAD", "#BFFCC6", "#AFCBFF",
+            "#FFE6AA", "#FFBFA3", "#F3B0C3", "#A3F7BF", "#B2F0E6",
+            "#F6E6B4", "#E0C3FC", "#FFD5CD", "#C9FFD5", "#D5F4E6",
+            "#A1EAFB", "#FFCCE5", "#D1C4E9", "#C5E1A5", "#F8BBD0",
+            "#FFF59D", "#B39DDB", "#80CBC4", "#FFAB91", "#CE93D8",
+        ]
+
+
+        used = [g["color"] for g in groups.values()]
+        for c in palette:
+            if c not in used:
+                return c
+        return palette[len(groups) % len(palette)]
 
     def render_legend(self, groups):
-        html = "<div style='display:flex;flex-wrap:wrap;gap:10px;'>"
+        html = "<div style='display:flex;gap:8px;flex-wrap:wrap'>"
         for name, g in groups.items():
-            color = g.get("color", "#DDD")
             html += (
-                f"<div style='display:flex;align-items:center;gap:6px;'>"
-                f"<div style='width:15px;height:15px;background:{color};border:1px solid #333;'></div>"
+                f"<div style='display:flex;align-items:center;gap:6px'>"
+                f"<div style='width:14px;height:14px;"
+                f"background:{g['color']};border:1px solid #444'></div>"
                 f"{_html.escape(name)}</div>"
             )
         html += "</div>"
         st.markdown(html, unsafe_allow_html=True)
-
-    # -------------------------------------------------------------
-    # STATISTICS CHARTS
-    # -------------------------------------------------------------
-    def statistic_graphics(self, read_data):
-        groups = read_data.get("cell_groups", {})
-        if not groups:
-            return
-
-        st.subheader("📊 Group Statistics Comparison")
-
-        stats_df = []
-        for name, g in groups.items():
-            if "Error" not in g["stats"]:
-                row = {"Group": name}
-                row.update(g["stats"])
-                stats_df.append(row)
-
-        if not stats_df:
-            st.warning("No numeric stats available.")
-            return
-
-        stats_df = pd.DataFrame(stats_df).set_index("Group")
-
-        for metric in ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]:
-            if metric not in stats_df.columns:
-                continue
-
-            with st.expander(metric):
-                fig, ax = plt.subplots(figsize=(5, 3))
-                colors = [groups[g]["color"] for g in stats_df.index]
-                ax.bar(stats_df.index, stats_df[metric], color=colors)
-                ax.set_title(metric)
-                plt.xticks(rotation=45)
-                st.pyplot(fig)
