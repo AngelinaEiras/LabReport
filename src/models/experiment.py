@@ -1,604 +1,18 @@
-# # from datetime import datetime
-# # import json
-# # import os
-# # from pydantic import BaseModel, Field, field_serializer
-# # import pandas as pd
-# # from pandas import DataFrame, read_excel
-# # import streamlit as st
-
-# # Constant used to map row labels to plate types
-# # PLATE_ROW_RANGES = {
-# #     "12 wells": ["A", "B", "C"],
-# #     "24 wells": ["A", "B", "C", "D"],
-# #     "48 wells": ["A", "B", "C", "D", "E", "F"],
-# #     "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
-# # }
-
-# # class Experiment(BaseModel):
-# #     """
-# #     A model representing a lab experiment backed by a DataFrame and associated metadata.
-# #     """
-
-# #     class Config:
-# #         arbitrary_types_allowed = True  # Allows use of pandas DataFrame as a field type
-
-# #     # Experiment metadata fields
-# #     name: str                          # Name of the experiment
-# #     dataframe: DataFrame               # Raw experiment data in a DataFrame
-# #     filepath: str                      # JSON storage location
-# #     creation_date: str = Field(default_factory=lambda: str(datetime.now()))  # Auto-filled timestamp
-# #     last_modified: str = Field(default_factory=lambda: str(datetime.now()))  # Auto-filled timestamp
-# #     note: str = Field(default="", description="Optional note for the experiment")  # User notes
-
-# #     # ---- SERIALIZERS ----
-# #     @field_serializer('dataframe')
-# #     def serialize_dataframe(self, value: DataFrame):
-# #         """
-# #         Serialize DataFrame to a JSON string using 'split' orientation,
-# #         which includes columns, index, and data separately.
-# #         """
-# #         return value.to_json(orient="split", date_format="iso")
-
-# #     # ---- MAIN LOGIC ----
-# #     @staticmethod
-# #     def split_into_subdatasets(df: DataFrame) -> tuple[list[DataFrame], list[str]]:
-# #         """
-# #         Split a DataFrame into subdatasets based on plate layout.
-# #         Use the previous row as header if it seems to contain column labels.
-# #         """
-# #         # Infer plate type
-# #         first_col_letters = df.iloc[:, 0].astype(str).str.strip().str[0].str.upper().unique()
-# #         actual_row_letters = sorted([l for l in first_col_letters if 'A' <= l <= 'H'])
-
-# #         inferred_plate_type = "96 wells"
-# #         if actual_row_letters:
-# #             max_letter = actual_row_letters[-1]
-# #             if max_letter <= 'C':
-# #                 inferred_plate_type = "12 wells"
-# #             elif max_letter <= 'D':
-# #                 inferred_plate_type = "24 wells"
-# #             elif max_letter <= 'F':
-# #                 inferred_plate_type = "48 wells"
-
-# #         valid_rows = PLATE_ROW_RANGES[inferred_plate_type]
-
-# #         subdatasets = []
-# #         subdataset = pd.DataFrame(columns=df.columns)
-# #         start_flag = False
-
-# #         for i, row in df.iterrows():
-# #             first_value = str(row.iloc[0]).strip()
-
-# #             if first_value.startswith(valid_rows[0]):
-# #                 # finalize previous subdataset
-# #                 if start_flag and not subdataset.empty:
-# #                     subdatasets.append(subdataset)
-
-# #                 # Determine header row
-# #                 if i > 0:
-# #                     prev_row = df.iloc[i - 1]
-# #                     # If previous row is mostly strings, treat it as header
-# #                     if prev_row.map(lambda x: isinstance(x, str) and x.strip() != "").sum() >= len(prev_row) / 2:
-# #                         header = prev_row.fillna("").astype(str).tolist()
-# #                     else:
-# #                         header = df.columns.tolist()
-# #                 else:
-# #                     header = df.columns.tolist()
-
-# #                 # create subdataset with proper header
-# #                 subdataset = pd.DataFrame(columns=header)
-
-# #                 # append current 'A' row as first data row
-# #                 values = row.tolist()
-# #                 if len(values) > len(header):
-# #                     values = values[:len(header)]
-# #                 elif len(values) < len(header):
-# #                     values += [""] * (len(header) - len(values))
-# #                 subdataset.loc[len(subdataset)] = values
-
-# #                 start_flag = True
-# #                 continue
-
-# #             # Append rows belonging to the plate
-# #             if start_flag:
-# #                 first_char = first_value[0].upper() if first_value else ""
-# #                 if first_char in valid_rows[1:]:  # only B-H
-# #                     values = row.tolist()
-# #                     if len(values) > len(subdataset.columns):
-# #                         values = values[:len(subdataset.columns)]
-# #                     elif len(values) < len(subdataset.columns):
-# #                         values += [""] * (len(subdataset.columns) - len(values))
-# #                     subdataset.loc[len(subdataset)] = values
-# #                     continue
-# #                 else:
-# #                     # row outside valid range → close subdataset
-# #                     if not subdataset.empty:
-# #                         subdatasets.append(subdataset)
-# #                     subdataset = pd.DataFrame(columns=df.columns)
-# #                     start_flag = False
-
-# #         # Append last subdataset
-# #         if start_flag and not subdataset.empty:
-# #             subdatasets.append(subdataset)
-
-# #         return subdatasets, valid_rows
-
-# #     # ---- FACTORY METHODS ----
-# #     @classmethod
-# #     def create_experiment_from_file(cls, filepath: str) -> 'Experiment':
-# #         """
-# #         Initialize an Experiment from an Excel file path.
-# #         The experiment name is derived from the file name.
-# #         """
-# #         name = os.path.basename(filepath).split(".")[0]  # Strip path and extension
-# #         try:
-# #             dataframe = read_excel(filepath, header=None)
-# #         except Exception as e:
-# #             raise ValueError(f"Error reading Excel file {filepath}: {e}")
-
-# #         return cls(
-# #             name=name,
-# #             dataframe=dataframe,
-# #             filepath=f"experiments/{name}.json",
-# #             note=""
-# #         )
-
-# #     @classmethod
-# #     def create_experiment_from_bytes(cls, bytes_data: bytes, name: str) -> 'Experiment':
-# #         """
-# #         Create an Experiment from uploaded file bytes (e.g., Streamlit upload).
-# #         """
-# #         try:
-# #             dataframe = read_excel(bytes_data, header=None)
-# #         except Exception as e:
-# #             raise ValueError(f"Error reading Excel bytes for {name}: {e}")
-
-# #         return cls(
-# #             name=name,
-# #             dataframe=dataframe,
-# #             filepath=f"experiments/{name}.json",
-# #             note=""
-# #         )
-
-# #     # ---- PERSISTENCE ----
-# #     def save(self):
-# #         """
-# #         Save the experiment to its JSON file.
-# #         This includes serialized DataFrame and metadata.
-# #         """
-# #         self.last_modified = str(datetime.now())  # Update modification time
-# #         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-# #         with open(self.filepath, "w", encoding='utf-8') as file:
-# #             json.dump(self.model_dump(), file, ensure_ascii=False, indent=4)
-
-# #     @classmethod
-# #     def load(cls, filepath: str) -> 'Experiment':
-# #         """
-# #         Load an experiment from disk. Deserializes DataFrame from saved JSON.
-# #         """
-# #         if not os.path.exists(filepath):
-# #             raise FileNotFoundError(f"Experiment file not found: {filepath}")
-
-# #         with open(filepath, "r", encoding='utf-8') as file:
-# #             data = json.load(file)
-
-# #             # Deserialize DataFrame from 'split' format JSON
-# #             json_data = json.loads(data["dataframe"])
-# #             data["dataframe"] = DataFrame(
-# #                 data=json_data['data'],
-# #                 index=json_data['index'],
-# #                 columns=json_data['columns']
-# #             )
-
-# #             data.setdefault("note", "")  # Ensure backward compatibility
-
-# #             return cls.model_validate(data)
-
-# #     # ---- UTILITIES ----
-# #     def rename(self, new_name: str):
-# #         """
-# #         Rename the experiment and update its associated file.
-# #         Prevent overwriting an existing experiment with the same name.
-# #         """
-# #         old_filepath = self.filepath
-# #         new_filepath = os.path.join(os.path.dirname(old_filepath), f"{new_name}.json")
-
-# #         if os.path.exists(new_filepath):
-# #             raise ValueError(f"Experiment with name '{new_name}' already exists.")
-
-# #         # Update name and path
-# #         self.name = new_name
-# #         self.filepath = new_filepath
-# #         self.save()
-
-# #         # Clean up old file
-# #         if os.path.exists(old_filepath) and old_filepath != new_filepath:
-# #             os.remove(old_filepath)
-
-# #     # You may add a delete method later if needed
-# #     # def delete(self):
-# #     #     os.remove(self.filepath)
-
-
-
-
-# from datetime import datetime
-# import json
-# import os
-# import re
-# import streamlit as st
-# from pydantic import BaseModel, Field, field_serializer
-# import pandas as pd
-# from pandas import DataFrame, read_excel
-
-
-# # =======================================================================
-# # CONSTANTS
-# # =======================================================================
-
-# PLATE_ROW_RANGES = {
-#     "12 wells": ["A", "B", "C"],
-#     "24 wells": ["A", "B", "C", "D"],
-#     "48 wells": ["A", "B", "C", "D", "E", "F"],
-#     "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
-# }
-
-
-# # =======================================================================
-# # EXPERIMENT CLASS
-# # =======================================================================
-
-# class Experiment(BaseModel):
-#     """
-#     Full upgraded class for parsing plate-reader data exports
-#     with metadata, multiple reads, and raw data support.
-#     """
-
-#     class Config:
-#         arbitrary_types_allowed = True
-
-#     # ---------------------------------------
-#     # MAIN FIELDS
-#     # ---------------------------------------
-#     name: str
-#     dataframe: DataFrame
-#     filepath: str
-#     metadata: dict = {}
-#     reads: dict[str, DataFrame] = {}
-#     creation_date: str = Field(default_factory=lambda: str(datetime.now()))
-#     last_modified: str = Field(default_factory=lambda: str(datetime.now()))
-#     note: str = Field(default="")
-
-#     # ===================================================================
-#     # SERIALIZERS FOR JSON OUTPUT
-#     # ===================================================================
-
-#     @field_serializer('dataframe')
-#     def serialize_dataframe(self, df: DataFrame):
-#         return df.to_json(orient="split", date_format="iso")
-
-#     @field_serializer('reads')
-#     def serialize_reads(self, reads: dict[str, DataFrame]):
-#         return {k: df.to_json(orient="split", date_format="iso") for k, df in reads.items()}
-
-#     @field_serializer('metadata')
-#     def serialize_metadata(self, metadata: dict):
-#         return metadata
-
-#     # ===================================================================
-#     # -------------------- METADATA EXTRACTION ---------------------------
-#     # ===================================================================
-
-#     @staticmethod
-#     def extract_metadata(df: DataFrame) -> dict:
-#         """
-#         Extract metadata from Synergy/BioTek Excel exports.
-
-#         Rules:
-#         - Metadata is in column 0 (key) and column 1 (value)
-#         - Empty key rows are ignored
-#         - Rows with a key but no value start a multi-line section
-#         - Subsequent rows with empty key but value belong to last key
-#         - Stop at 'Results' or when plate data (A–H row) begins
-#         """
-
-#         metadata = {}
-#         current_key = None
-
-#         for _, row in df.iterrows():
-#             key = str(row.iloc[0]).strip() if len(row) > 0 else ""
-#             val = str(row.iloc[1]).strip() if len(row) > 1 else ""
-
-#             # Normalize pandas nan
-#             if key.lower() == "nan":
-#                 key = ""
-#             if val.lower() == "nan":
-#                 val = ""
-
-#             # Stop at Results section
-#             if key == "Results":
-#                 break
-
-#             # Stop if plate data starts (A–H)
-#             if re.fullmatch(r"[A-H]", key):
-#                 break
-
-#             # Completely empty row → skip
-#             if not key and not val:
-#                 continue
-
-#             # New metadata key
-#             if key:
-#                 clean_key = key.rstrip(":")
-#                 current_key = clean_key
-
-#                 if val:
-#                     metadata[current_key] = val
-#                 else:
-#                     metadata[current_key] = []  # start multi-line section
-
-#             # Continuation of previous key
-#             elif current_key and val:
-#                 if isinstance(metadata[current_key], list):
-#                     metadata[current_key].append(val)
-#                 else:
-#                     # Convert single value into list if continuation appears
-#                     metadata[current_key] = [metadata[current_key], val]
-
-#         return metadata
-
-
-#     # ===================================================================
-#     # ---------------------- READ EXTRACTION -----------------------------
-#     # ===================================================================
-
-#     @staticmethod
-#     def extract_reads(df: DataFrame) -> dict[str, DataFrame]:
-#         """
-#         Extracts multiple plate reads from exports where:
-#           - there is a header row with column numbers (1..N) that indicates data start
-#           - each plate "row group" begins with a row containing a letter A..H
-#           - subsequent lines (without the letter) belong to the same row and carry different read labels
-#           - read label is found in the last non-empty cell of each line
-
-#         Returns:
-#             dict mapping read_label -> DataFrame (rows A..H, columns '1'..'N')
-#         """
-#         import re
-
-#         # Helper: detect header row and data start column (e.g., row with 1,2,3,...)
-#         def detect_data_start(df):
-#             for ridx, row in df.iterrows():
-#                 vals = list(row)
-#                 nums = []
-#                 for v in vals:
-#                     try:
-#                         if pd.isna(v):
-#                             nums.append(None)
-#                         else:
-#                             nums.append(int(v))
-#                     except Exception:
-#                         nums.append(None)
-#                 # search for short increasing integer sequence (1,2,3...)
-#                 for start in range(len(nums)):
-#                     cur = None
-#                     seq_len = 0
-#                     for j in range(start, len(nums)):
-#                         if nums[j] is None:
-#                             break
-#                         if cur is None:
-#                             cur = nums[j]; seq_len = 1
-#                         else:
-#                             if nums[j] == cur + 1:
-#                                 cur = nums[j]; seq_len += 1
-#                             else:
-#                                 break
-#                     if seq_len >= 3:
-#                         return ridx, start, seq_len
-#             return None, None, None
-
-#         # 1) find data start (column index where numeric columns begin)
-#         header_idx, data_start_idx, seq_len = detect_data_start(df)
-#         if data_start_idx is None:
-#             # fallback to column 1 if detection fails
-#             data_start_idx = 1
-
-#         row_letter_re = re.compile(r'^[A-H]$', re.IGNORECASE)
-#         read_blocks = {}            # read_label -> { row_letter -> list_of_data_values }
-#         current_row_letter = None
-
-#         # 2) iterate rows sequentially, grouping by current_row_letter
-#         for _, row in df.iterrows():
-#             vals = list(row)
-#             sv = [("" if v is None else str(v)).strip() for v in vals]
-#             if not any(sv):
-#                 continue
-
-#             # find any cell equal to A..H (exact single-letter)
-#             found_letter = None
-#             for i, cell in enumerate(sv):
-#                 if row_letter_re.match(cell):
-#                     found_letter = cell.upper()
-#                     break
-
-#             # find last non-empty cell (the read label is expected here)
-#             last_non_empty_idx = None
-#             last_non_empty = None
-#             for i in range(len(sv) - 1, -1, -1):
-#                 if sv[i] != "":
-#                     last_non_empty_idx = i
-#                     last_non_empty = sv[i]
-#                     break
-#             if last_non_empty is None:
-#                 continue
-
-#             # if this row has a row letter → it's the start of a new row group
-#             if found_letter:
-#                 current_row_letter = found_letter
-#                 # data cells are between data_start_idx and last_non_empty_idx
-#                 start = data_start_idx
-#                 end = last_non_empty_idx
-#                 # data_cells = [] if end <= start else vals[start:end]
-#                 # read_blocks.setdefault(last_non_empty, {})[current_row_letter] = data_cells
-#                 data_cells = [] if end <= start else vals[start:end]
-
-#                 # 🔒 GUARD: skip rows with no numeric data
-#                 if not any(pd.notna(v) for v in data_cells):
-#                     continue
-
-#                 read_blocks.setdefault(last_non_empty, {})[current_row_letter] = data_cells
-
-#             else:
-#                 # no explicit row letter on this line → assume it belongs to current_row_letter
-#                 if current_row_letter and not row_letter_re.match(last_non_empty):
-#                     start = data_start_idx
-#                     end = last_non_empty_idx
-#                     # data_cells = [] if end <= start else vals[start:end]
-#                     # read_blocks.setdefault(last_non_empty, {})[current_row_letter] = data_cells
-#                     data_cells = [] if end <= start else vals[start:end]
-
-#                     # 🔒 GUARD: skip rows with no numeric data
-#                     if not any(pd.notna(v) for v in data_cells):
-#                         continue
-
-#                     read_blocks.setdefault(last_non_empty, {})[current_row_letter] = data_cells
-
-#                 else:
-#                     # can't associate this line → skip
-#                     continue
-
-#         # 3) convert grouped data into DataFrames (ordered rows A..H, padded to max length)
-#         final = {}
-#         for read_label, rows_map in read_blocks.items():
-#             ordered = [r for r in "ABCDEFGH" if r in rows_map]
-#             if not ordered:
-#                 continue
-#             max_len = max(len(rows_map[r]) for r in ordered)
-#             table = []
-#             for r in ordered:
-#                 row_vals = list(rows_map[r]) + [""] * (max_len - len(rows_map[r]))
-#                 table.append([r] + row_vals)
-#             cols = ["Row"] + [str(i) for i in range(1, max_len + 1)]
-#             final[read_label] = pd.DataFrame(table, columns=cols)
-
-#         return final
-
-
-#     @staticmethod
-#     def block_to_df(block: list[list]):
-#         if not block:
-#             return pd.DataFrame()
-
-#         # Check for column consistency
-#         max_cols = max(len(row) for row in block)
-#         block = [row + [""] * (max_cols - len(row)) for row in block]
-
-#         row_count = max_cols - 1
-#         columns = ["Row"] + [str(i) for i in range(1, row_count + 1)]
-#         return pd.DataFrame(block, columns=columns)
-
-#     # ===================================================================
-#     # FACTORY METHODS
-#     # ===================================================================
-
-#     @classmethod
-#     def create_experiment_from_file(cls, filepath: str) -> 'Experiment':
-#         name = os.path.basename(filepath).split(".")[0]
-#         try:
-#             df = read_excel(filepath, sheet_name=0, header=None)
-#         except Exception as e:
-#             raise ValueError(f"Error reading Excel file {filepath}: {e}")
-
-#         metadata = cls.extract_metadata(df)
-#         reads = cls.extract_reads(df)
-
-#         return cls(
-#             name=name,
-#             dataframe=df,
-#             metadata=metadata,
-#             reads=reads,
-#             filepath=f"experiments/{name}.json",
-#             note=""
-#         )
-
-
-#     @classmethod
-#     def create_experiment_from_bytes(cls, bytes_data: bytes, name: str) -> 'Experiment':
-#         try:
-#             df = read_excel(bytes_data, sheet_name=0, header=None)
-#         except Exception as e:
-#             raise ValueError(f"Error reading Excel bytes: {e}")
-
-#         metadata = cls.extract_metadata(df)
-#         reads = cls.extract_reads(df)
-
-#         return cls(
-#             name=name,
-#             dataframe=df,
-#             metadata=metadata,
-#             reads=reads,
-#             filepath=f"experiments/{name}.json",
-#             note=""
-#         )
-
-#     # ===================================================================
-#     # LOAD & SAVE
-#     # ===================================================================
-
-#     def save(self):
-#         self.last_modified = str(datetime.now())
-#         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-
-#         with open(self.filepath, "w", encoding="utf-8") as f:
-#             json.dump(self.model_dump(), f, ensure_ascii=False, indent=4)
-
-#     @classmethod
-#     def load(cls, filepath: str) -> 'Experiment':
-#         if not os.path.exists(filepath):
-#             raise FileNotFoundError(filepath)
-
-#         with open(filepath, "r", encoding="utf-8") as f:
-#             data = json.load(f)
-
-#         # Restore dataframe
-#         j = json.loads(data["dataframe"])
-#         data["dataframe"] = pd.DataFrame(j["data"], index=j["index"], columns=j["columns"])
-
-#         # Restore reads
-#         restored = {}
-#         for name, json_str in data.get("reads", {}).items():
-#             j = json.loads(json_str)
-#             restored[name] = pd.DataFrame(j["data"], index=j["index"], columns=j["columns"])
-#         data["reads"] = restored
-
-#         return cls.model_validate(data)
-
-#     # ===================================================================
-#     # UTILITIES
-#     # ===================================================================
-
-#     def rename(self, new_name: str):
-#         old_filepath = self.filepath
-#         new_filepath = os.path.join(os.path.dirname(old_filepath), f"{new_name}.json")
-
-#         if os.path.exists(new_filepath):
-#             raise ValueError(f"Experiment '{new_name}' already exists.")
-
-#         self.name = new_name
-#         self.filepath = new_filepath
-#         self.save()
-
-#         if os.path.exists(old_filepath):
-#             os.remove(old_filepath)
-
-
-
-# '''
-# ESTÁ A FUNCIONAR!!! AGORA, ALTERAR FORMA COMO INFO É GUARDADA NO TRACKER, TENTAR RELACIONAR ALGUMAS TABELAS (DIFERENTES LEITURAS DA MESMA COISA E DEPOIS DA O CORRIGIDO)
-# MELHORAR A INFO QUE É RETIRADA DO CABEÇALHO INICIAL
-# ALTERAR FORMA COMO ESTÁ O MUDAR O NOME
-# '''
-
+"""
+experiment.py
+
+This module defines the Experiment model.
+
+Main responsibilities:
+1) Load an Excel file exported by the plate reader software.
+2) Extract all "metadata" text that appears before the plate tables begin.
+3) Detect whether the file contains:
+   - "simple" plate tables (normal A–H grid blocks), OR
+   - "complex" multi-read tables (A–H rows repeated with read labels at the end).
+4) Extract each read into a clean pandas DataFrame.
+
+The Experiment class is used by your Streamlit Editor and Report pages.
+"""
 
 from datetime import datetime
 import json
@@ -616,14 +30,16 @@ from pydantic import BaseModel, Field, field_serializer
 # CONSTANTS
 # ======================================================================
 
+# Plate row letters your exports typically use (96-well: A–H)
+ROW_LETTERS = set("ABCDEFGH")
+
+# Plate sizes by row letters (used in other parts of the app, or future extension)
 PLATE_ROW_RANGES = {
     "12 wells": ["A", "B", "C"],
     "24 wells": ["A", "B", "C", "D"],
     "48 wells": ["A", "B", "C", "D", "E", "F"],
-    "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"]
+    "96 wells": ["A", "B", "C", "D", "E", "F", "G", "H"],
 }
-
-ROW_LETTERS = set("ABCDEFGH")
 
 
 # ======================================================================
@@ -633,8 +49,23 @@ ROW_LETTERS = set("ABCDEFGH")
 class Experiment(BaseModel):
     """
     Unified experiment model capable of parsing:
-    - Simple plate tables (single or multiple A–H blocks)
-    - Complex multi-read tables (row-wise read labels)
+      - Simple plate tables (single or multiple A–H blocks)
+      - Complex multi-read tables (row-wise read labels)
+
+    Attributes
+    ----------
+    name : str
+        Experiment name derived from the file name.
+    dataframe : DataFrame
+        Raw Excel content loaded with pandas (header=None).
+    filepath : str
+        Where the serialized experiment JSON could be saved.
+    metadata : dict
+        Extracted metadata from top of the file until the first plate header row.
+        Values can be strings or lists of strings.
+    reads : Dict[str, DataFrame]
+        Extracted read tables. Keys are read labels like:
+        "Plate 1" for simple layouts, or "Read 1:570 [Test]" etc. for complex layouts.
     """
 
     class Config:
@@ -656,26 +87,85 @@ class Experiment(BaseModel):
     # ==================================================================
     # SERIALIZATION
     # ==================================================================
+    # These serializers allow Experiment to be dumped to JSON cleanly.
 
     @field_serializer("dataframe")
     def serialize_dataframe(self, df: DataFrame):
+        """
+        Serialize raw dataframe into JSON.
+        'split' format stores index, columns, and data separately (stable roundtrip).
+        """
         return df.to_json(orient="split", date_format="iso")
 
     @field_serializer("reads")
     def serialize_reads(self, reads: Dict[str, DataFrame]):
+        """
+        Serialize each read DataFrame into JSON.
+        """
         return {k: v.to_json(orient="split", date_format="iso") for k, v in reads.items()}
 
     # ==================================================================
     # PHASE 1 — METADATA EXTRACTION
     # ==================================================================
+
     @staticmethod
     def extract_metadata(df: pd.DataFrame) -> dict:
+        """
+        Extract metadata from the start of the Excel file until the plate table begins.
+
+        The export file usually looks like:
+
+            Software Version   3.14.03
+            ...
+            Procedure Details
+            Plate Type         96 WELL PLATE ...
+            Eject plate on completion
+            ...
+            Results
+            Actual Temperature: 23.7
+            Actual Temperature: 23.8
+            ...
+                    1  2  3 ... 12   <-- THIS is the plate header row
+            A   ...
+            ...
+
+        Rules implemented:
+        - We scan row-by-row, collecting content into a `metadata` dict.
+        - Stop when we detect the numeric plate header row: 1 2 3 ... N
+        - Support:
+            * "Key: Value" lines (where key ends with ":")
+            * Section headers (single cell lines like "Procedure Details", "Results")
+            * Paragraph lines under a section header (stored as list of strings)
+
+        Returns
+        -------
+        dict
+            Example:
+            {
+              "Software Version": "3.14.03",
+              "Procedure Details": [
+                  "Plate Type 96 WELL PLATE (Use plate lid)",
+                  "Eject plate on completion",
+                  ...
+              ],
+              "Results": [
+                  "Actual Temperature: 23.7",
+                  "Actual Temperature: 23.8",
+              ]
+            }
+        """
+
         metadata = {}
         current_section = None
 
-        def is_plate_header(cells):
+        def is_plate_header(cells: List[str]) -> bool:
             """
-            Detects numeric plate column header: 1 2 3 ... N
+            Detect whether a row corresponds to the numeric plate column header:
+            1 2 3 4 ... N
+
+            Implementation:
+            - Try to parse each cell as an integer.
+            - If the parsed list equals [1, 2, 3, ..., N], treat it as the header.
             """
             nums = []
             for c in cells:
@@ -685,8 +175,10 @@ class Experiment(BaseModel):
                     return False
             return nums == list(range(1, len(nums) + 1))
 
+        # Iterate through the raw Excel rows
         for _, row in df.iterrows():
-            # Clean row
+
+            # Clean: keep only non-empty string cells
             cells = [
                 str(v).strip()
                 for v in row.tolist()
@@ -694,21 +186,25 @@ class Experiment(BaseModel):
             ]
 
             if not cells:
+                # skip empty lines
                 continue
 
-            # 🛑 STOP at plate column header
+            # 🛑 Stop extracting metadata once we reach the table header.
+            # This is the first definitive sign that plate data begins.
             if is_plate_header(cells):
                 break
 
             # ----------------------------
-            # Key : Value rows
+            # Case 1: "Key: Value" rows
+            # Example: "Experiment File Path:"  "\\server\path\file.xpt"
             # ----------------------------
             if len(cells) >= 2 and cells[0].endswith(":"):
                 key = cells[0].rstrip(":")
-                value = " ".join(cells[1:])
+                value = " ".join(cells[1:])  # join remaining cells into a single string
 
+                # If this key repeats (e.g., multiple Actual Temperature lines),
+                # store as list.
                 if key in metadata:
-                    # repeated key → list
                     if isinstance(metadata[key], list):
                         metadata[key].append(value)
                     else:
@@ -716,11 +212,13 @@ class Experiment(BaseModel):
                 else:
                     metadata[key] = value
 
+                # reset section tracking because this is not a section paragraph
                 current_section = None
                 continue
 
             # ----------------------------
-            # Section headers
+            # Case 2: Section headers
+            # Example: "Procedure Details", "Results"
             # ----------------------------
             if len(cells) == 1 and not cells[0].replace(".", "", 1).isdigit():
                 section = cells[0]
@@ -729,13 +227,13 @@ class Experiment(BaseModel):
                 continue
 
             # ----------------------------
-            # Paragraph lines
+            # Case 3: Paragraph lines under current section
+            # Example lines under "Procedure Details"
             # ----------------------------
             if current_section:
                 metadata[current_section].append(" ".join(cells))
 
         return metadata
-
 
     # ==================================================================
     # PHASE 2 — TABLE TYPE DETECTION
@@ -744,32 +242,41 @@ class Experiment(BaseModel):
     @staticmethod
     def detect_table_layout(df: DataFrame) -> str:
         """
-        Decide whether the Excel contains:
-        - SIMPLE plate tables
-        - COMPLEX multi-read table
-        """
+        Detect whether the file contains a SIMPLE or COMPLEX table structure.
 
+        SIMPLE:
+        - Typical A–H rows appear once per table block
+        - Often separate blocks for multiple plates
+
+        COMPLEX:
+        - A–H rows repeat many times
+        - The last non-empty cell is a read label (non-numeric)
+          e.g. "Read 1:570 [Test]"
+
+        Heuristic:
+        - Count how many A–H rows exist
+        - Count how many of those rows end in a non-numeric cell (read label)
+        - If enough, assume "complex"
+        """
         read_label_hits = 0
         row_letter_hits = 0
 
         for _, row in df.iterrows():
             cells = [str(v).strip() for v in row.tolist() if pd.notna(v)]
-
             if not cells:
                 continue
 
-            # A–H row detected
+            # Detect A–H row indicator in first cell
             if cells[0] in ROW_LETTERS:
                 row_letter_hits += 1
 
-                # If last cell is NOT numeric → likely a read label
+                # If the last cell cannot be converted to float => read label
                 try:
                     float(cells[-1])
                 except Exception:
                     read_label_hits += 1
 
-        # Heuristic:
-        # If many A–H rows AND many non-numeric trailing labels → complex
+        # Heuristic decision
         if row_letter_hits >= 8 and read_label_hits >= 4:
             return "complex"
 
@@ -782,10 +289,23 @@ class Experiment(BaseModel):
     @staticmethod
     def extract_simple_plate_tables(df: DataFrame) -> Dict[str, DataFrame]:
         """
-        Extract one or more clean A–H plate tables.
-        Each table becomes a read: Plate 1, Plate 2, ...
-        """
+        Extract one or more A–H blocks where each block is a plate-like table.
 
+        Logic:
+        - Iterate rows
+        - Start a block when row[0] is a row letter A–H
+        - End a block when row[0] is not A–H
+        - Convert each block into a DataFrame ("Plate 1", "Plate 2", ...)
+
+        Returns
+        -------
+        Dict[str, DataFrame]
+            {
+              "Plate 1": <DataFrame>,
+              "Plate 2": <DataFrame>,
+              ...
+            }
+        """
         reads = {}
         current_block = []
         plate_index = 1
@@ -796,11 +316,13 @@ class Experiment(BaseModel):
             if first in ROW_LETTERS:
                 current_block.append(row.tolist())
             else:
+                # block ended
                 if current_block:
                     reads[f"Plate {plate_index}"] = Experiment._block_to_plate_df(current_block)
                     plate_index += 1
                     current_block = []
 
+        # flush last block if file ends
         if current_block:
             reads[f"Plate {plate_index}"] = Experiment._block_to_plate_df(current_block)
 
@@ -808,6 +330,19 @@ class Experiment(BaseModel):
 
     @staticmethod
     def _block_to_plate_df(block: List[List]) -> DataFrame:
+        """
+        Convert a raw A–H block into a clean DataFrame.
+
+        - Pad rows so all have same length
+        - Drop empty columns
+        - Rename column 0 to "Row"
+        - Keep 'Row' as first column (and index temporarily)
+
+        Returns
+        -------
+        DataFrame
+            Plate-like table with "Row" as first column.
+        """
         max_cols = max(len(r) for r in block)
         block = [r + [""] * (max_cols - len(r)) for r in block]
 
@@ -824,76 +359,125 @@ class Experiment(BaseModel):
     @staticmethod
     def extract_complex_reads(df: DataFrame) -> Dict[str, DataFrame]:
         """
-        Extract reads where:
-        - A–H rows repeat
-        - Last non-empty cell is the read label
+        Extract multiple reads from complex format where:
+        - Rows may repeat (A–H)
+        - The last non-empty cell is a read label (string)
+          Example label: "Read 1:570 [Test]"
+        - Data values are in the middle columns.
+
+        Approach:
+        - Scan each row
+        - Detect row letter (A–H) somewhere in the row
+        - Detect label as last non-empty cell
+        - Extract data from vals[1:-1]
+        - Drop leading non-numeric junk until first numeric appears
+        - Store per-label, per-row letter data
+        - Build one DataFrame per read label
+
+        Returns
+        -------
+        Dict[str, DataFrame]
+            {
+              "Read 1:570 [Test]": <DataFrame with rows A-H>,
+              "Read 1:600 [Ref]": <DataFrame ...>,
+              ...
+            }
         """
 
-        read_blocks = {}
+        read_blocks = {}   # label -> {row_letter -> list(values)}
         current_row = None
 
         for _, row in df.iterrows():
             vals = row.tolist()
+
+            # Convert each cell to string, keeping "" for NaNs
             sv = [str(v).strip() if pd.notna(v) else "" for v in vals]
 
+            # skip fully empty rows
             if not any(sv):
                 continue
 
+            # Find any row letter in the row (A–H)
             found_letter = next((v for v in sv if v in ROW_LETTERS), None)
-            label = next((v for v in reversed(sv) if v), None)
 
+            # Label is assumed to be the last non-empty cell
+            label = next((v for v in reversed(sv) if v), None)
             if not label:
                 continue
 
-            # data = vals[1:-1]
-            # if not any(pd.notna(v) for v in data):
-            #     continue
+            # Candidate data is everything between first cell and last cell
             data = vals[1:-1]
-            # 🔥 FIX: drop leading non-numeric columns (letters OR empty)
+
+            # Drop leading non-numeric columns (letters, blanks, etc.)
+            # until first numeric is found.
             while data:
                 v = data[0]
                 try:
                     float(v)
-                    break  # first numeric column found
+                    break
                 except Exception:
                     data = data[1:]
+
             if not data:
                 continue
 
-
+            # Update the current row letter if found
             if found_letter:
                 current_row = found_letter
 
+            # Store this row under its read label
             if current_row:
                 read_blocks.setdefault(label, {})[current_row] = data
 
+        # Build DataFrames per label
         reads = {}
         for label, rows in read_blocks.items():
             ordered = [r for r in "ABCDEFGH" if r in rows]
             if not ordered:
                 continue
+
             max_len = max(len(rows[r]) for r in ordered)
-            table = [[r] + rows[r] + [""] * (max_len - len(rows[r])) for r in ordered]
-            df = pd.DataFrame(
+
+            # Build table rows: ["A", v1, v2, ...]
+            table = [
+                [r] + rows[r] + [""] * (max_len - len(rows[r]))
+                for r in ordered
+            ]
+
+            df_read = pd.DataFrame(
                 table,
                 columns=["Row"] + [str(i) for i in range(1, max_len + 1)]
             )
-            # 🔥 CRITICAL FIX — remove fully empty columns
-            df = df.replace("", np.nan)
-            df = df.dropna(axis=1, how="all")
-            # 🔥 Renumber numeric columns cleanly
-            cols = ["Row"] + [str(i) for i in range(1, df.shape[1])]
-            df.columns = cols
-            reads[label] = df
+
+            # Remove fully empty columns (common in messy exports)
+            df_read = df_read.replace("", np.nan)
+            df_read = df_read.dropna(axis=1, how="all")
+
+            # Renumber numeric columns cleanly:
+            # If columns dropped, make them 1..N again.
+            cols = ["Row"] + [str(i) for i in range(1, df_read.shape[1])]
+            df_read.columns = cols
+
+            reads[label] = df_read
 
         return reads
 
     # ==================================================================
-    # FACTORY METHODS
+    # FACTORY METHOD
     # ==================================================================
 
     @classmethod
     def create_experiment_from_file(cls, filepath: str) -> "Experiment":
+        """
+        High-level constructor.
+
+        Steps:
+        1) Load Excel as raw dataframe (header=None).
+        2) Extract metadata.
+        3) Detect layout (simple vs complex).
+        4) Extract reads accordingly.
+        5) Return Experiment instance.
+        """
         name = os.path.basename(filepath).split(".")[0]
         df = read_excel(filepath, header=None)
 
@@ -918,7 +502,11 @@ class Experiment(BaseModel):
     # ==================================================================
 
     def save(self):
+        """
+        Save the Experiment model as JSON to self.filepath.
+        """
         self.last_modified = str(datetime.now())
         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
+
         with open(self.filepath, "w", encoding="utf-8") as f:
             json.dump(self.model_dump(), f, indent=4, ensure_ascii=False)
