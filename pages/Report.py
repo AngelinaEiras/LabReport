@@ -1,47 +1,36 @@
 """
 Report.py — Report Generator (Streamlit)
 
-This page lets a user build a PDF report from experiment data stored in trackers.
+What this page does
+-------------------
+Build a PDF report from experiment data saved by the Editor.
 
-Data flow (important)
----------------------
-1) TRACKERS/editor_file_tracker.json
-   - Produced by the Editor page.
-   - Contains, per experiment and per read:
-       • original_table (immutable snapshot)
-       • edited_table   (user edits)
-       • cell_groups    (selected cells + stats + colors)
-       • report_payload (cached distributions/stats for report regeneration)
-
-2) TRACKERS/report_metadata_tracker.json
-   - Produced/updated by this Report page.
-   - Stores:
-       • general_metadata (form fields for the report)
-       • read_includes (per-read include flags — what the user wants in the PDF)
-
-UI overview
------------
-- Sidebar: logo + app info
-- Experiment selector: choose which experiment to report
-- General metadata: edit standard fields + custom fields
-- Reads selection: per read, choose which parts to include (original, edited, highlighted, stats, plots)
-- Generate: produce a PDF and offer download
-
-Notes on saving behavior
-------------------------
-- This version saves include checkbox changes immediately:
-    manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
-  whenever a checkbox changes.
-- Because of that, you do NOT strictly need a separate "Save selections for this read" button.
-
-About st.rerun()
+Sources of truth
 ----------------
-- `st.rerun()` is useful when:
-   • you click "Select all/none" and want all checkboxes to update visually right away
-   • you update metadata and want the UI to refresh using saved values
-- For checkbox changes, you generally do NOT need `st.rerun()` because Streamlit reruns
-  automatically on widget interaction. However:
-   • "Select all/none" changes many values in one click, and rerun ensures UI reflects them immediately.
+1) TRACKERS/editor_file_tracker.json  (from Editor)
+   Per experiment:
+     - metadata (parsed from Excel, pre-table area)
+     - reads[read_name]:
+         - original_table (immutable)
+         - edited_table   (user edits)
+         - renamed_columns (display mapping old->new)
+         - cell_groups (selected cells, stored using canonical/original column names)
+         - report_payload (optional cache; includes renamed/display tables for reporting)
+
+2) TRACKERS/report_metadata_tracker.json (from Report page)
+   Per experiment:
+     - general_metadata (user-filled report fields)
+     - read_includes (what to include per read)
+
+Key behaviors
+-------------
+- Excel metadata is displayed in the Report page and used to prefill report fields
+  ONLY when the report field is empty.
+- If Editor cached "display tables" (renamed columns) into report_payload["tables"],
+  the Report uses them for preview + PDF.
+- Highlighting supports renamed columns by translating group cell column labels
+  from canonical -> display labels.
+
 """
 
 import streamlit as st
@@ -49,7 +38,7 @@ import pandas as pd
 import datetime
 import os
 import base64
-import json
+import copy
 
 from src.models.report_creator import ExperimentReportManager
 
@@ -57,24 +46,15 @@ from src.models.report_creator import ExperimentReportManager
 # ==========================================================
 # SMALL UTILITIES (LOGO / SIDEBAR STYLING)
 # ==========================================================
-def get_base64_image(image_path):
-    """
-    Read an image from disk and return a base64 string.
-
-    This is used to embed the logo directly in CSS so it renders in the Streamlit sidebar.
-    """
+def get_base64_image(image_path: str) -> str:
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
 
-# Convert your logo to base64 once at import time
 img_base64 = get_base64_image("images/logo9.png")
 
 
 def add_logo():
-    """
-    Inject CSS to display a logo + title in the sidebar navigation area.
-    """
     st.markdown(
         f"""
         <style>
@@ -100,28 +80,71 @@ def add_logo():
 
 
 # ==========================================================
+# HELPERS
+# ==========================================================
+def _meta_lookup(excel_meta: dict, key: str):
+    """
+    Try to fetch a value from Excel metadata using:
+      1) exact key
+      2) case-insensitive key match
+
+    Returns None if not found.
+    """
+    if not isinstance(excel_meta, dict) or not key:
+        return None
+
+    if key in excel_meta:
+        return excel_meta.get(key)
+
+    key_lower = key.strip().lower()
+    for k, v in excel_meta.items():
+        if str(k).strip().lower() == key_lower:
+            return v
+    return None
+
+
+def _normalize_excel_meta_value(v):
+    """Excel metadata sometimes stores list[str]; convert to a readable string."""
+    if isinstance(v, list):
+        # keep multi-line blocks readable
+        if len(v) == 1:
+            return str(v[0])
+        return "\n".join(str(x) for x in v)
+    if v is None:
+        return ""
+    return str(v)
+
+
+def _translate_groups_to_display(groups: dict, rename_map_old_to_new: dict) -> dict:
+    """
+    Groups store canonical/original column names.
+    If the report table uses renamed/display columns, translate:
+      cell["column"] = rename_map_old_to_new.get(cell["column"], cell["column"])
+    """
+    if not groups or not isinstance(groups, dict):
+        return {}
+
+    rename_map_old_to_new = rename_map_old_to_new or {}
+    out = copy.deepcopy(groups)
+
+    for _, ginfo in out.items():
+        for cell in ginfo.get("cells", []):
+            col = str(cell.get("column", ""))
+            if col in rename_map_old_to_new and rename_map_old_to_new[col]:
+                cell["column"] = rename_map_old_to_new[col]
+    return out
+
+
+# ==========================================================
 # MAIN APP
 # ==========================================================
 def main():
-    """
-    Main Streamlit function.
-
-    Steps:
-    1) Configure page layout
-    2) Load editor/report trackers
-    3) User selects experiment
-    4) User edits general metadata
-    5) User chooses which read parts to include
-    6) Generate PDF report from selections
-    """
-    # --- Streamlit page configuration ---
     st.set_page_config(
         page_icon="images/page_icon2.png",
         layout="wide",
         initial_sidebar_state="expanded",
     )
 
-    # --- Sidebar content ---
     with st.sidebar:
         add_logo()
         st.subheader("App Info")
@@ -129,16 +152,12 @@ def main():
 
     st.header("Experiment Report Template")
 
-    # --- Manager handles common operations like load/save JSON and PDF generation ---
     manager = ExperimentReportManager()
 
-    # Editor tracker = source of truth for reads (original/edited/groups/stats payload)
+    # Load trackers
     editor_data = manager.load_json_file("TRACKERS/editor_file_tracker.json")
-
-    # Report tracker = persistent configuration for report-building (metadata + include flags)
     report_data = manager.load_json_file("TRACKERS/report_metadata_tracker.json")
 
-    # If no editor data, nothing can be reported
     if not editor_data:
         st.warning("No experiment data found in TRACKERS/editor_file_tracker.json")
         st.stop()
@@ -146,112 +165,105 @@ def main():
     # ==========================================================
     # EXPERIMENT SELECTION
     # ==========================================================
-    # `manager.run()` presumably renders a selector UI for experiments.
     selected_experiment = manager.run()
-
     if selected_experiment is None:
         st.info("Please select an experiment to continue.")
         st.stop()
 
-    # Retrieve the experiment bucket from editor tracker
-    exp_bucket = editor_data.get(selected_experiment, {})
+    exp_bucket = editor_data.get(selected_experiment, {}) if isinstance(editor_data, dict) else {}
     exp_reads = exp_bucket.get("reads", {}) if isinstance(exp_bucket, dict) else {}
 
     if not exp_reads:
         st.warning("No reads found for this experiment in editor_file_tracker.json")
         st.stop()
 
+    # Excel-extracted metadata from Editor tracker
+    excel_metadata = exp_bucket.get("metadata", {}) if isinstance(exp_bucket, dict) else {}
+
     # ==========================================================
-    # ENSURE REPORT STORAGE STRUCTURE EXISTS
+    # REPORT STORAGE STRUCTURE
     # ==========================================================
-    # One entry per experiment in report tracker
     exp_report_entry = report_data.setdefault(selected_experiment, {})
-
-    # A place to store general report-level metadata fields
     exp_report_entry.setdefault("general_metadata", {})
-
-    # Per-read include flags:
-    #   exp_report_entry["read_includes"][read_name] = { include_original: True, ... }
     exp_report_entry.setdefault("read_includes", {})
-
-    # Backwards compatibility (older schema)
-    exp_report_entry.setdefault("subdataset_metadata", {})
+    exp_report_entry.setdefault("subdataset_metadata", {})  # backwards compat
 
     # ==========================================================
-    # GENERAL METADATA FORM
+    # SHOW EXCEL METADATA (READ-ONLY)
     # ==========================================================
-    # These are the standard metadata fields you want in your report template.
-    # Each field definition tells manager.display_metadata_fields() how to render it.
+    with st.expander("Excel metadata found in the file (from Editor)", expanded=True):
+        if not excel_metadata:
+            st.info("No metadata was found / saved from the Excel file.")
+        else:
+            # Render nicely (handles list blocks)
+            for k, v in excel_metadata.items():
+                v_norm = _normalize_excel_meta_value(v)
+                st.markdown(f"**{k}**")
+                if "\n" in v_norm:
+                    for line in v_norm.splitlines():
+                        st.markdown(line)
+                else:
+                    st.markdown(v_norm)
+                st.write("")
+
+    # ==========================================================
+    # GENERAL METADATA FORM (prefill from Excel if empty)
+    # ==========================================================
+    st.markdown("#### General Metadata Fields")
+
+    # Prefill helper: if report field empty, try Excel meta
+    gm = exp_report_entry["general_metadata"]
+
+    def _prefill(field_name: str, fallback=""):
+        current = gm.get(field_name, "")
+        if str(current).strip() != "":
+            return current  # user value wins
+        excel_val = _meta_lookup(excel_metadata, field_name)
+        if excel_val is None:
+            return fallback
+        return _normalize_excel_meta_value(excel_val)
+
     metadata_fields = {
-        "Plate Type": {
-            "type": "selectbox",
-            "options": ["96 wells", "48 wells", "24 wells", "12 wells"],
-            "default_source": exp_report_entry["general_metadata"].get("Plate Type", "96 wells"),
-        },
-        "Timepoint": {
-            "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Timepoint", ""),
-        },
-        "Experiment Type": {
-            "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Experiment Type", ""),
-        },
-        "Test Item": {
-            "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Test Item", ""),
-        },
-        "Test System": {
-            "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Test System", ""),
-        },
-        "Seeding density": {
-            "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Seeding density", ""),
-        },
+        "Timepoint": {"type": "text_input", "default_source": _prefill("Timepoint", "")},
+        "Experiment Type": {"type": "text_input", "default_source": _prefill("Experiment Type", "")},
+        "Test Item": {"type": "text_input", "default_source": _prefill("Test Item", "")},
+        "Test System": {"type": "text_input", "default_source": _prefill("Test System", "")},
+        "Seeding density": {"type": "text_input", "default_source": _prefill("Seeding density", "")},
         "Seeding Date": {
             "type": "date_input",
-            "default_source": pd.to_datetime(
-                exp_report_entry["general_metadata"].get("Seeding Date", datetime.date.today())
-            ),
+            "default_source": pd.to_datetime(_prefill("Seeding Date", datetime.date.today())),
         },
         "Passage of the Used Test System": {
             "type": "text_input",
-            "default_source": exp_report_entry["general_metadata"].get("Passage of the Used Test System", ""),
-        },
-        "Analysis Date": {
-            "type": "date_input",
-            "default_source": pd.to_datetime(
-                exp_report_entry["general_metadata"].get("Analysis Date", datetime.date.today())
-            ),
+            "default_source": _prefill("Passage of the Used Test System", ""),
         },
     }
 
-    st.markdown("#### General Metadata Fields")
+    # If values are empty, seed them once from default_source (so widgets show it)
+    # This also makes sure they persist after saving.
+    for k, cfg in metadata_fields.items():
+        if str(gm.get(k, "")).strip() == "":
+            gm[k] = cfg.get("default_source", "")
 
-    # Render standard fields and detect changes
-    changed = manager.display_metadata_fields(metadata_fields, exp_report_entry["general_metadata"])
-
-    # If any standard field changed, persist immediately and refresh
+    changed = manager.display_metadata_fields(metadata_fields, gm)
     if changed:
         manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
         st.info("Metadata updated.")
         st.rerun()
 
     # ==========================================================
-    # CUSTOM (USER-ADDED) METADATA
+    # CUSTOM METADATA
     # ==========================================================
     st.markdown("#### Custom General Fields")
 
-    # Display existing custom fields (not part of the standard template)
     custom_changed = manager.display_custom_metadata(
-        exp_report_entry["general_metadata"],
+        gm,
         metadata_fields,
         unique_key_prefix=f"{selected_experiment}_general",
     )
 
-    # Allow adding a new custom key-value field
     custom_added = manager.add_custom_metadata_field(
-        exp_report_entry["general_metadata"],
+        gm,
         subdataset_key=f"{selected_experiment}_general_add",
     )
 
@@ -266,49 +278,44 @@ def main():
     st.markdown("---")
     st.subheader("Reads available for report")
 
-    # Each tuple = (internal_key, user_label)
     PARTS = [
         ("include_original", "Original table"),
         ("include_edited", "Edited table"),
         ("include_highlighted", "Highlighted (groups)"),
         ("include_stats_table", "Stats table"),
         ("include_boxplot", "Boxplot + Mean±SD"),
-        ("include_metric_charts", "Metric comparison charts"),
+        # ("include_metric_charts", "Metric comparison charts"),
     ]
 
-    st.caption("Pick what to include per read. Choices are saved in report_metadata_tracker.json.")
-
-    # Read names come from editor tracker
     read_names = list(exp_reads.keys())
 
-    # Loop each read and provide configuration UI in an expander
     for read_name in read_names:
         read_store = exp_reads.get(read_name, {})
         if not isinstance(read_store, dict):
             continue
 
-        # Pull tables and group info from the editor tracker
+        # Core
         original_table = read_store.get("original_table", [])
         edited_table = read_store.get("edited_table", [])
         cell_groups = read_store.get("cell_groups", {})
 
-        # Cached stats payload (raw distributions/stats_table) from Editor page
-        stats_payload = (read_store.get("report_payload") or {}).get("stats", {})
+        # Rename map and (optional) report-friendly display tables
+        rename_map = read_store.get("renamed_columns", {}) or {}
+        tables_payload = (read_store.get("report_payload") or {}).get("tables", {}) or {}
 
-        # Convert stored row-dicts into dataframes
-        orig_df = pd.DataFrame(original_table) if original_table else pd.DataFrame()
-        edit_df = pd.DataFrame(edited_table) if edited_table else pd.DataFrame()
+        # Prefer display tables if they exist (better readability in report)
+        orig_display_records = tables_payload.get("original_display_table")
+        edit_display_records = tables_payload.get("edited_display_table")
 
-        # Determine if edited differs from original
+        orig_df = pd.DataFrame(orig_display_records) if orig_display_records else pd.DataFrame(original_table)
+        edit_df = pd.DataFrame(edit_display_records) if edit_display_records else pd.DataFrame(edited_table)
+
+        # Translate groups to display column names if we're showing display tables
+        groups_for_display = _translate_groups_to_display(cell_groups, rename_map)
+
         has_edits = (not orig_df.empty and not edit_df.empty and not orig_df.equals(edit_df))
-
-        # Determine if groups exist
         has_groups = bool(cell_groups)
 
-        # Defaults:
-        # - always include original
-        # - include edited only if differences exist
-        # - include visuals only if groups exist
         defaults = {
             "include_original": True,
             "include_edited": has_edits,
@@ -318,36 +325,40 @@ def main():
             "include_metric_charts": has_groups,
         }
 
-        # Ensure read include config exists
         include_cfg = exp_report_entry["read_includes"].setdefault(read_name, defaults.copy())
 
-        # Build expander label with status hints
+        # --- Build expander label with selection summary ---
         label = f"{read_name}"
         if has_edits:
-            label += " — edited"
+            label += " — edited "
         if has_groups:
-            label += f" — {len(cell_groups)} groups"
+            label += f" — {len(cell_groups)} groups "
+
+        # What is currently selected for this read?
+        selected_titles = []
+        for key, title in PARTS:
+            if include_cfg.get(key, False):
+                selected_titles.append(title)
+
+        if selected_titles:
+            label += " ".join(selected_titles)
+        else:
+            label += " **Nothing Selected**"
+
 
         with st.expander(label, expanded=False):
-
-            # --------------------------------------------------
-            # "Select all" / "Select none" convenience buttons
-            # --------------------------------------------------
             c1, c2, c3 = st.columns([1, 1, 3])
 
             with c1:
                 if st.button("Select all", key=f"sel_all_{selected_experiment}_{read_name}"):
                     for k, _ in PARTS:
-                        # Only allow edited if it exists
                         if k == "include_edited" and not has_edits:
                             include_cfg[k] = False
-                        # Only allow group visuals if groups exist
                         elif k in ("include_highlighted", "include_stats_table", "include_boxplot", "include_metric_charts") and not has_groups:
                             include_cfg[k] = False
                         else:
                             include_cfg[k] = True
 
-                    # Persist and rerun so the UI updates immediately
                     manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
                     st.rerun()
 
@@ -355,27 +366,20 @@ def main():
                 if st.button("Select none", key=f"sel_none_{selected_experiment}_{read_name}"):
                     for k, _ in PARTS:
                         include_cfg[k] = False
-
-                    # Persist and rerun so the UI updates immediately
                     manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
                     st.rerun()
 
             st.write("")
 
-            # --------------------------------------------------
-            # Part checkboxes (saved immediately on change)
-            # --------------------------------------------------
             for key, title in PARTS:
                 disabled = False
                 help_txt = None
 
-                # Disable "edited" include if no edits exist
                 if key == "include_edited" and not has_edits:
                     disabled = True
-                    help_txt = "No differences between original and edited table."
+                    help_txt = "No edites detected."
                     include_cfg[key] = False
 
-                # Disable group-based visuals if no groups exist
                 if key in ("include_highlighted", "include_stats_table", "include_boxplot", "include_metric_charts") and not has_groups:
                     disabled = True
                     help_txt = "No groups exist for this read."
@@ -389,16 +393,12 @@ def main():
                     key=f"chk_{selected_experiment}_{read_name}_{key}",
                 )
 
-                # If changed: update config and persist immediately
                 if new_val != include_cfg.get(key, False):
                     include_cfg[key] = new_val
                     manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
 
             st.write("---")
 
-            # --------------------------------------------------
-            # Preview tabs (optional convenience)
-            # --------------------------------------------------
             tabs = st.tabs(["Preview original", "Preview edited", "Preview highlighted"])
 
             with tabs[0]:
@@ -417,11 +417,8 @@ def main():
                 if not has_groups:
                     st.info("No groups to highlight.")
                 else:
-                    # Highlight the edited table if it exists, otherwise highlight original
                     base_df = edit_df if has_edits else orig_df
-
-                    # `generate_highlighted_html_table()` should create an HTML table with cell coloring
-                    html = manager.generate_highlighted_html_table(base_df, cell_groups)
+                    html = manager.generate_highlighted_html_table(base_df, groups_for_display)
                     st.markdown(html, unsafe_allow_html=True)
 
     # ==========================================================
@@ -430,10 +427,12 @@ def main():
     st.markdown("---")
 
     if st.button("#### Generate Full Experiment Report"):
-        # General metadata collected on this page
-        experiment_metadata = exp_report_entry.get("general_metadata", {})
+        # Merge metadata: Excel metadata + user general metadata (user overrides)
+        merged_metadata = {}
+        if isinstance(excel_metadata, dict):
+            merged_metadata.update({str(k): _normalize_excel_meta_value(v) for k, v in excel_metadata.items()})
+        merged_metadata.update(exp_report_entry.get("general_metadata", {}) or {})
 
-        # Build a payload with only the reads/parts the user selected
         all_reads_payload = []
 
         for read_name in read_names:
@@ -442,14 +441,21 @@ def main():
                 continue
 
             include_cfg = exp_report_entry.get("read_includes", {}).get(read_name, {})
-
-            # Skip reads where nothing is selected
             if not any(include_cfg.values()):
                 continue
 
-            original_df = pd.DataFrame(read_store.get("original_table", []))
-            edited_df = pd.DataFrame(read_store.get("edited_table", []))
-            groups = read_store.get("cell_groups", {})
+            rename_map = read_store.get("renamed_columns", {}) or {}
+            tables_payload = (read_store.get("report_payload") or {}).get("tables", {}) or {}
+
+            orig_display_records = tables_payload.get("original_display_table")
+            edit_display_records = tables_payload.get("edited_display_table")
+
+            original_df = pd.DataFrame(orig_display_records) if orig_display_records else pd.DataFrame(read_store.get("original_table", []))
+            edited_df = pd.DataFrame(edit_display_records) if edit_display_records else pd.DataFrame(read_store.get("edited_table", []))
+
+            groups = read_store.get("cell_groups", {}) or {}
+            groups_for_display = _translate_groups_to_display(groups, rename_map)
+
             stats_payload = (read_store.get("report_payload") or {}).get("stats", {})
 
             all_reads_payload.append({
@@ -457,7 +463,7 @@ def main():
                 "include": include_cfg,
                 "original_df": original_df,
                 "edited_df": edited_df,
-                "cell_groups": groups,
+                "cell_groups": groups_for_display,  # display-safe group columns
                 "stats_payload": stats_payload,
             })
 
@@ -465,15 +471,12 @@ def main():
             st.warning("Nothing selected. Please select at least one part from at least one read.")
             st.stop()
 
-        # Generate the PDF using your report manager
         pdf_path = manager.generate_pdf_report_reads(
             all_reads_payload,
-            experiment_metadata=experiment_metadata
+            experiment_metadata=merged_metadata
         )
 
         st.success("PDF generated.")
-
-        # Offer download button
         file_name = os.path.splitext(os.path.basename(selected_experiment))[0] + "_report.pdf"
         with open(pdf_path, "rb") as f:
             st.download_button(

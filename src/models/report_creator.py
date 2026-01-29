@@ -289,8 +289,36 @@ class ExperimentReportManager:
         return re.sub(r"\W+", "_", str(name))
 
     # ==========================================================
-    # HIGHLIGHT HTML TABLE (GROUP COLORS)
+    # RENAME COLUMNS AND HIGHLIGHT HTML TABLE (GROUP COLORS)
     # ==========================================================
+    def apply_rename_map_to_groups(self, groups: dict, rename_map: dict) -> dict:
+        """
+        Convert group cell column references from canonical/original column names
+        to display column names (renamed headers), so highlighting works on display tables.
+
+        - groups: group_name -> {"cells": [...], "color": "...", ...}
+        - rename_map: {old: new}
+
+        Returns a NEW groups dict (does not mutate original).
+        """
+        if not groups or not rename_map:
+            return groups or {}
+
+        out = {}
+        for gname, ginfo in groups.items():
+            new_g = dict(ginfo)
+            new_cells = []
+            for cell in ginfo.get("cells", []):
+                c = dict(cell)
+                old_col = str(c.get("column", ""))
+                # translate canonical -> display
+                c["column"] = str(rename_map.get(old_col, old_col))
+                new_cells.append(c)
+            new_g["cells"] = new_cells
+            out[gname] = new_g
+        return out
+
+
     def generate_highlighted_html_table(self, base_df, groups):
         """
         Produce an HTML table from a dataframe and highlight specific cells based on groups.
@@ -878,4 +906,5 @@ class ExperimentReportManager:
 
         HTML(string=html).write_pdf(pdf_filepath)
         return pdf_filepath
+
 

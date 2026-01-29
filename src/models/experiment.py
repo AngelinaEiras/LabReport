@@ -19,7 +19,7 @@ import json
 import os
 import re
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Any, Optional
 
 import pandas as pd
 from pandas import DataFrame, read_excel
@@ -216,6 +216,23 @@ class Experiment(BaseModel):
                 current_section = None
                 continue
 
+
+            # ----------------------------
+            # Case 1b: "Key   Value" rows (no trailing colon)
+            # Example: Date  02/08/2023, Time  16:25:33
+            # We also allow Date/Time to be captured even if we're inside a section
+            # (e.g., "Procedure Details"), because these are real metadata.
+            # ----------------------------
+            if len(cells) >= 2 and not str(cells[0]).endswith(":"):
+                key = str(cells[0]).strip()
+                value = " ".join(str(x).strip() for x in cells[1:])
+
+                force_keys = {"Date", "Time", "Date/Time", "Start Time", "End Time"}
+                if (current_section is None and not is_plate_header(key) and not key.lower().startswith("read")) or (key in force_keys):
+                    metadata[key] = value
+                    continue
+
+
             # ----------------------------
             # Case 2: Section headers
             # Example: "Procedure Details", "Results"
@@ -232,6 +249,12 @@ class Experiment(BaseModel):
             # ----------------------------
             if current_section:
                 metadata[current_section].append(" ".join(cells))
+
+        # Convenience aliases for report templates
+        if "Date" in metadata and "Analysis Date" not in metadata:
+            metadata["Analysis Date"] = metadata["Date"]
+        if "Time" in metadata and "Analysis Time" not in metadata:
+            metadata["Analysis Time"] = metadata["Time"]
 
         return metadata
 
@@ -488,6 +511,25 @@ class Experiment(BaseModel):
             reads = cls.extract_simple_plate_tables(df)
         else:
             reads = cls.extract_complex_reads(df)
+
+        # --- Deduplicate Date/Time vs Analysis Date/Time ---
+        date = metadata.get("Date")
+        time = metadata.get("Time")
+
+        analysis_date = metadata.get("Analysis Date")
+        analysis_time = metadata.get("Analysis Time")
+
+        # If they represent the same moment, drop the Analysis fields
+        if date and time and analysis_date and analysis_time:
+            # normalize to strings for safe comparison
+            d = str(date).strip()
+            t = str(time).strip()
+            ad = str(analysis_date).strip()
+            at = str(analysis_time).strip()
+
+            if d.startswith(ad) and t == at:
+                metadata.pop("Analysis Date", None)
+                metadata.pop("Analysis Time", None)
 
         return cls(
             name=name,
