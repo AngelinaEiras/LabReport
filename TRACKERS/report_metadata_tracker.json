@@ -1,1 +1,141 @@
-{}
+{
+    "/home/angelina/Desktop/final_LabReport/tests/20230802_PBval_run1.xlsx": {
+        "general_metadata": {
+            "Timepoint": "measurement occurred at 12 h",
+            "Test Item": "Staurosporine",
+            "Test System": "A549",
+            "Seeding density": "10.000 cells/well",
+            "Seeding Date": "2023-02-07",
+            "Passage of the Used Test System": "3",
+            "Cell Culture": "A549 cells were cultured in culture flasks with FK12 Kaighn's medium.",
+            "Incubator Settings": "Temperature: 37°C; CO₂: 5%; Humidity: 95%"
+        },
+        "read_includes": {},
+        "subdataset_metadata": {},
+        "reads": {
+            "Read 1:570 [Test]": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false,
+                    "include_metric_charts": false,
+                    "custom_fields": false
+                },
+                "custom_fields": {}
+            },
+            "Read 1:600 [Ref]": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false,
+                    "include_metric_charts": false,
+                    "custom_fields": false
+                },
+                "custom_fields": {}
+            },
+            "Read 1:Pathlength": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false,
+                    "include_metric_charts": false,
+                    "custom_fields": false
+                },
+                "custom_fields": {}
+            },
+            "Read 1:570": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false,
+                    "include_metric_charts": false,
+                    "custom_fields": false
+                },
+                "custom_fields": {}
+            },
+            "Read 1:600": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false,
+                    "include_metric_charts": false,
+                    "custom_fields": false
+                },
+                "custom_fields": {
+                    "egreagr": "eageagaegeg"
+                }
+            },
+            "Read 2:560,590": {
+                "include": {
+                    "include_original": true,
+                    "include_edited": false,
+                    "include_highlighted": true,
+                    "include_stats_table": true,
+                    "include_boxplot": true,
+                    "include_metric_charts": true,
+                    "include_costum_fields": true,
+                    "custom_fields": true
+                },
+                "custom_fields": {
+                    "notes about the stats": "The high coefficients of variation observed at low analyte concentrations are expected and do not obscure the overall trends, which are consistent with the expected cellular viability response of A549 cells."
+                }
+            },
+            "Corrected [Read 1:570]": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false
+                },
+                "custom_fields": {}
+            },
+            "Corrected [Read 1:600]": {
+                "include": {
+                    "include_original": false,
+                    "include_edited": false,
+                    "include_highlighted": false,
+                    "include_stats_table": false,
+                    "include_boxplot": false
+                },
+                "custom_fields": {
+                    "aeeggs": "rsthsrthhr"
+                }
+            }
+        },
+        "read_custom_fields": {
+            "Read 1:570 [Test]": {},
+            "Read 1:600 [Ref]": {},
+            "Read 1:Pathlength": {},
+            "Read 1:570": {},
+            "Read 1:600": {},
+            "Read 2:560,590": {
+                "egg": "rtgsrhht"
+            }
+        }
+    },
+    "/home/angelina/Desktop/dissertacao/a_laboratório/PB/20250514_PB.xlsx": {
+        "general_metadata":{
+            "Plate Type":"96 wells",
+            "Timepoint":"2.5h",
+            "Experiment Type":"PrestoBlue",
+            "Test Item":"Triton X-100",
+            "Test System":"A549",
+            "Seeding density":"10.000",
+            "Seeding Date":"2025-05-14",
+            "Passage of the Used Test System":"1",
+            "Analysis Date":"2025-05-14"
+        },
+        "reads": {}
+    }
+}

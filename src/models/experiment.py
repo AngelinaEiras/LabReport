@@ -158,6 +158,64 @@ class Experiment(BaseModel):
         metadata = {}
         current_section = None
 
+        ####################################################
+
+        def _row_is_blank(row_vals) -> bool:
+            return all(pd.isna(x) or str(x).strip() == "" for x in row_vals)
+
+        def _looks_like_plate_header_row(row_vals) -> bool:
+            # Accept headers like: ["top read", 1,2,3,4,...] or [1,2,3,...]
+            parsed = []
+            for v in row_vals:
+                try:
+                    if pd.isna(v) or str(v).strip() == "":
+                        parsed.append(None)
+                    else:
+                        parsed.append(int(float(v)))
+                except Exception:
+                    parsed.append(None)
+
+            # Look for a contiguous run 1,2,3,4,... across columns
+            for j in range(len(parsed)):
+                if parsed[j] == 1:
+                    run = 1
+                    nxt = 2
+                    k = j + 1
+                    while k < len(parsed) and parsed[k] == nxt:
+                        run += 1
+                        nxt += 1
+                        k += 1
+                    if run >= 6:   # 6 is a safe minimum; 12 also works if you only do 96-well
+                        return True
+            return False
+
+        def _looks_like_table_body_row(row_vals) -> bool:
+            # Detect rows like: A  <numbers...>  or B <numbers...>
+            first = None
+            for v in row_vals:
+                if not (pd.isna(v) or str(v).strip() == ""):
+                    first = str(v).strip()
+                    break
+            if first is None:
+                return False
+            if not re.fullmatch(r"[A-H]", first, flags=re.IGNORECASE):
+                return False
+
+            # count numeric cells in the row; table body tends to have several
+            num_count = 0
+            for v in row_vals:
+                try:
+                    if pd.isna(v) or str(v).strip() == "":
+                        continue
+                    float(v)
+                    num_count += 1
+                except Exception:
+                    continue
+            return num_count >= 6
+
+        ####################################################
+
+
         def is_plate_header(cells: List[str]) -> bool:
             """
             Detect whether a row corresponds to the numeric plate column header:
@@ -175,8 +233,35 @@ class Experiment(BaseModel):
                     return False
             return nums == list(range(1, len(nums) + 1))
 
+
+        # 1) Find first table start row
+        table_start_idx = None
+        for i, row in df.iterrows():
+            row_vals = list(row.values)
+            if _looks_like_plate_header_row(row_vals) or _looks_like_table_body_row(row_vals):
+                table_start_idx = int(i)
+                break
+
+        if table_start_idx is None:
+            # no obvious table found → don't guess; treat as no metadata
+            return {}
+
+        # 2) Find the last completely-empty row before the table starts
+        last_blank_before = None
+        for i in range(table_start_idx - 1, -1, -1):
+            if _row_is_blank(list(df.iloc[i].values)):
+                last_blank_before = i
+                break
+
+        # 3) Only take metadata rows above that blank row (or above table start if no blank)
+        meta_end = last_blank_before if last_blank_before is not None else table_start_idx
+        meta_df = df.iloc[:meta_end]
+
+
+
         # Iterate through the raw Excel rows
-        for _, row in df.iterrows():
+        # for _, row in df.iterrows():
+        for _, row in meta_df.iterrows():
 
             # Clean: keep only non-empty string cells
             cells = [

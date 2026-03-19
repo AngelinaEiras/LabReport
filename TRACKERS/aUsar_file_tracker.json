@@ -24,18 +24,5 @@
         "creation_date": "2026-01-27T18:50:11.751898",
         "last_modified": "2026-01-27T18:50:30.722646",
         "is_experiment": false
-    },
-    "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx": {
-        "filepath": "/home/angelina/Desktop/dissertacao/a_laborat\u00f3rio/PB/20250514_PB.xlsx",
-        "name": "20250514_PB.xlsx",
-        "metadata": {
-            "size": 18419,
-            "created": "2025-10-24T01:24:13.690028",
-            "last_modified": "2025-10-24T01:24:03.601977"
-        },
-        "note": "",
-        "creation_date": "2026-02-11T15:28:34.107048",
-        "last_modified": "2026-02-11T15:28:45.147676",
-        "is_experiment": true
     }
 }

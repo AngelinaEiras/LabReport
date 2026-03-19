@@ -27,12 +27,22 @@ Key concepts
 Column renaming (important behavior)
 ------------------------------------
 - Users can rename columns via the UI expander:
-  "Rename Columns using unique names: example_a and example_b".
+  "Rename columns using unique names:".
 - The mapping is persisted under: reads[read_name]["renamed_columns"].
 - The Editable table displays renamed columns, but the tracker stores
   edited_table in canonical/original column names to keep history stable.
 - Group cell selections are stored using canonical/original column names so
   that changing display names later does not break highlights.
+
+Group statistics (current scope)
+--------------------------------
+- A dynamic metric registry (`_metrics_registry`) defines which per-group
+  statistics are computed. Adjusting this registry automatically updates:
+  • the stats stored in each group
+  • the stats table shown in the "Statistical Comparison" section
+- The current default set includes:
+  Average, Standard Deviation, Coefficient of Variation, Median, Min, Max.
+- All displayed and stored numeric statistics are rounded to 2 decimals.
 
 Tracker schema (high-level)
 ---------------------------
@@ -58,7 +68,7 @@ editor_file_tracker.json:
                 "column": "<CANONICAL_COLUMN_NAME>"
               }, ...
             ],
-            "stats": { "Mean": ..., "Standard Deviation": ..., ... },
+            "stats": { "Average": ..., "Standard Deviation": ..., ... },
             "color": "#FFB3BA"
           }
         },
@@ -90,12 +100,14 @@ Notes for maintainers
 # ==========================================================
 import streamlit as st
 import pandas as pd
+from collections import OrderedDict
 import json
 import os
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import html as _html
+import re
 import openpyxl
 
 from st_table_select_cell import st_table_select_cell
@@ -200,6 +212,46 @@ class Editor:
     # SMALL UTILITIES
     # ------------------------------------------------------
     @staticmethod
+    def _suggest_group_name_from_selection(selected_cells) -> str:
+        """
+        Suggest a default group name based on the row letters of selected cells.
+        Examples:
+        - Row A
+        - Rows A-C
+        - Rows A,C,F
+        """
+        if not selected_cells:
+            return ""
+
+        rows = sorted({str(c.get("row", "")).strip() for c in selected_cells if c.get("row")})
+        if not rows:
+            return ""
+
+        # Single row
+        if len(rows) == 1:
+            return f"Row {rows[0]}"
+
+        # Try to compress contiguous sequences (A,B,C -> A-C)
+        ords = sorted({ord(r) for r in rows if len(r) == 1 and "A" <= r <= "Z"})
+        if len(ords) != len(rows):  # fallback for unexpected labels
+            return "Rows " + ",".join(rows)
+
+        ranges = []
+        start = prev = ords[0]
+        for o in ords[1:]:
+            if o == prev + 1:
+                prev = o
+            else:
+                ranges.append((start, prev))
+                start = prev = o
+        ranges.append((start, prev))
+
+        def _fmt(a, b):
+            return chr(a) if a == b else f"{chr(a)}-{chr(b)}"
+
+        return "Rows " + ",".join(_fmt(a, b) for a, b in ranges)
+
+    @staticmethod
     def index_to_letter(idx: int) -> str:
         """Convert a zero-based row index into Excel-style row letter: 0->A, 1->B, ..."""
         return chr(65 + idx)
@@ -209,6 +261,9 @@ class Editor:
         """
         Compute descriptive statistics from a DataFrame of selected cells.
         Expected columns: "value"
+
+        NOTE: This function is kept for compatibility, but the current UI uses
+        `_metrics_registry()` + `_compute_stats_row()` for per-group statistics.
         """
         values = pd.to_numeric(group_df["value"], errors="coerce").dropna()
         if values.empty:
@@ -217,11 +272,11 @@ class Editor:
         mean = values.mean()
         sd = values.std()
         return {
-            "Mean": mean,
-            "Standard Deviation": sd,
-            "Coefficient of Variation": (sd / mean) if mean != 0 else None,
-            "Min": values.min(),
-            "Max": values.max(),
+            "Average": round(float(mean), 2),
+            "Standard Deviation": round(float(sd), 2),
+            "Coefficient of Variation": round(float(sd / mean), 2) if mean != 0 else None,
+            "Min": round(float(values.min()), 2),
+            "Max": round(float(values.max()), 2),
         }
 
     @staticmethod
@@ -251,6 +306,91 @@ class Editor:
         df2 = df.copy()
         df2.columns = new_cols
         return df2
+
+    @staticmethod
+    def _safe_column_name(name: str) -> str:
+        """
+        Make column names safe for frontend/JS components:
+        keep [A-Za-z0-9_], replace everything else with '_',
+        collapse repeated underscores, and avoid empty names.
+        """
+        s = str(name).strip()
+        s = re.sub(r"[^0-9a-zA-Z_]+", "_", s)   # replace unsafe chars
+        s = re.sub(r"_+", "_", s)              # collapse ____
+        s = s.strip("_")
+        return s or "col"
+
+    @staticmethod
+    def _metrics_registry():
+        """
+        Add/remove metrics here. Everything else adapts automatically.
+        Each function receives a pandas Series of floats.
+        """
+        def _sd(s):  # sample SD
+            return float(s.std(ddof=1)) if len(s) > 1 else 0.0
+
+        def _cv(s):
+            m = float(s.mean())
+            sd = _sd(s)
+            return float(sd / m) if m != 0 else None
+
+        return OrderedDict([
+            ("Average", lambda s: float(s.mean())),
+            ("Standard Deviation", _sd),
+            ("Coefficient of Variation", _cv),
+            ("Median", lambda s: float(s.median()) if len(s) > 0 else None),
+            ("Min", lambda s: float(s.min()) if len(s) > 0 else None),
+            ("Max", lambda s: float(s.max()) if len(s) > 0 else None),
+        ])
+
+    @staticmethod
+    def _numeric_series_from_cells(cells) -> pd.Series:
+        vals = []
+        for c in (cells or []):
+            v_num = pd.to_numeric(c.get("value", None), errors="coerce")
+            if pd.notna(v_num):
+                vals.append(float(v_num))
+        return pd.Series(vals, dtype="float")
+
+    @staticmethod
+    def _round_stat(value, ndigits=2):
+        if value is None:
+            return None
+        try:
+            return round(float(value), ndigits)
+        except Exception:
+            return value
+
+    def _compute_stats_row(self, s: pd.Series, ndigits: int = 2) -> dict:
+        if s.empty:
+            return {"Error": "No numeric data"}
+
+        out = {}
+        for label, fn in self._metrics_registry().items():
+            try:
+                val = fn(s)
+                out[label] = self._round_stat(val, ndigits)
+            except Exception:
+                out[label] = None
+        return out
+
+    @staticmethod
+    def _format_stats_for_display(stats: dict, ndigits: int = 2) -> dict:
+        """
+        Format statistics for UI display:
+        - floats → fixed decimal strings (e.g. 0.66)
+        - None stays None
+        """
+        out = {}
+        for k, v in stats.items():
+            if v is None:
+                out[k] = None
+            elif isinstance(v, (int, float)):
+                out[k] = f"{v:.{ndigits}f}"
+            else:
+                out[k] = v
+        return out
+
 
     def _get_exp_suggestions(self, exp_path: str) -> dict:
         """Return experiment-level column rename suggestions (old->suggested_new)."""
@@ -282,13 +422,9 @@ class Editor:
         # Experiment-level suggestions (old -> suggested_new)
         suggestions = self._get_exp_suggestions(exp_path)
 
-        with st.expander("**Rename Columns using unique names:**", expanded=False):
+        with st.expander("**Rename columns using unique names:**", expanded=False):
             st.caption("Provide unique names. If need to repeat name make small alteration, like example_a and example_b. Leave blank to keep the original column name.")
 
-            # Prefill rule:
-            # 1) if already applied for this read -> show that
-            # 2) else if suggestion exists -> show suggestion
-            # 3) else -> blank
             mapping_rows = []
             for col in df_canonical.columns:
                 col = str(col)
@@ -297,12 +433,6 @@ class Editor:
 
             mapping_df = pd.DataFrame(mapping_rows)
 
-            # edited_mapping_df = st.data_editor(
-            #     mapping_df,
-            #     use_container_width=True,
-            #     hide_index=True,
-            #     key=f"rename_map_{exp_path}_{read_name}",
-            # )
             edited_mapping_df = st.data_editor(
                 mapping_df,
                 use_container_width=True,
@@ -312,7 +442,7 @@ class Editor:
                     "Original": st.column_config.TextColumn(
                         "Original",
                         width="small",
-                        disabled=True,  # prevents editing originals
+                        disabled=True,
                     ),
                     "New": st.column_config.TextColumn(
                         "New",
@@ -322,11 +452,10 @@ class Editor:
                 },
             )
 
-
             col_apply, col_reset = st.columns([1, 5], gap="small")
 
             with col_apply:
-                if st.button("Apply renames", key=f"apply_renames_{exp_path}_{read_name}"):
+                if st.button("**Apply names**", key=f"apply_renames_{exp_path}_{read_name}"):
                     proposed_map = {}
                     new_names = []
 
@@ -338,7 +467,6 @@ class Editor:
                         proposed_map[orig] = new
                         new_names.append(new)
 
-                    # Validation: unique and no collisions with unchanged columns
                     if len(new_names) != len(set(new_names)):
                         st.error("New column names must be unique.")
                     else:
@@ -350,11 +478,8 @@ class Editor:
                                 + ", ".join(sorted(collisions))
                             )
                         else:
-                            # Save applied mapping for THIS read
                             read_store["renamed_columns"] = proposed_map
 
-                            # Update experiment-level suggestions
-                            # (only for entries explicitly set by user)
                             exp_suggestions = self._get_exp_suggestions(exp_path)
                             for old, new in proposed_map.items():
                                 exp_suggestions[str(old)] = str(new)
@@ -364,24 +489,35 @@ class Editor:
                             st.rerun()
 
             with col_reset:
-                if st.button("Reset renames", key=f"reset_renames_{exp_path}_{read_name}"):
-                    # Reset applied mapping for THIS read only
-                    read_store["renamed_columns"] = {}
-                    self._save_editor_tracker()
-                    st.success("Renames cleared for this sub-dataset. Suggestions remain available for others.")
-                    st.rerun()
+                confirm_key = f"confirm_delete_names_{exp_path}_{read_name}"
+                st.session_state.setdefault(confirm_key, False)
 
-        # Display df uses applied mapping for this read (not suggestions)
+                if st.button("**Delete names**", key=f"reset_renames_{exp_path}_{read_name}"):
+                    st.session_state[confirm_key] = True
+
+                if st.session_state[confirm_key]:
+                    st.warning("Confirm deletion of column names for this sub-dataset?")
+
+                    col_yes, col_no = st.columns([2, 2], gap="small")
+
+                    with col_yes:
+                        if st.button("Yes", key=f"confirm_delete_names_yes_{exp_path}_{read_name}"):
+                            read_store["renamed_columns"] = {}
+                            self._save_editor_tracker()
+
+                            st.session_state[confirm_key] = False
+                            st.success("Renames cleared for this sub-dataset. Suggestions remain available for others.")
+                            st.rerun()
+
+                    with col_no:
+                        if st.button("No", key=f"confirm_delete_names_no_{exp_path}_{read_name}"):
+                            st.session_state[confirm_key] = False
+                            st.rerun()
+
         return self._apply_rename_map(df_canonical, read_store.get("renamed_columns", {}))
 
 
     def _cache_report_tables(self, exp_path: str, read_name: str, read_store: dict):
-        """
-        Cache 'original' and 'edited' tables formatted for the Report page.
-
-        - Keeps tracker canonical tables unchanged.
-        - Stores DISPLAY versions (renamed columns) in report_payload["tables"].
-        """
         rename_map = read_store.get("renamed_columns", {}) or {}
 
         original_df = pd.DataFrame(read_store.get("original_table", []))
@@ -395,58 +531,34 @@ class Editor:
         read_store["report_payload"]["tables"] = {
             "original_display_table": original_display.to_dict(orient="records"),
             "edited_display_table": edited_display.to_dict(orient="records"),
-            "renamed_columns": rename_map,  # useful for report labeling
+            "renamed_columns": rename_map,
         }
 
     @staticmethod
     def _json_safe(x):
-        """Convert common non-JSON types (date/time/Timestamp/numpy) into JSON-safe values."""
-        # pandas timestamp
         if isinstance(x, pd.Timestamp):
             return x.isoformat()
-
-        # python datetime/date/time
         if isinstance(x, (datetime.datetime, datetime.date, datetime.time)):
             return x.isoformat()
-
-        # numpy scalars
         if isinstance(x, np.generic):
             return x.item()
-
-        # containers (RECURSION MUST CALL THE METHOD VIA CLASS)
         if isinstance(x, dict):
             return {str(k): Editor._json_safe(v) for k, v in x.items()}
-
         if isinstance(x, (list, tuple)):
             return [Editor._json_safe(v) for v in x]
-
-        # primitives
         if x is None or isinstance(x, (str, int, float, bool)):
             return x
-
-        # fallback
         return str(x)
-
 
     # ------------------------------------------------------
     # TRACKER NORMALIZATION
     # ------------------------------------------------------
     def _normalize_read_store(self, store: dict, read_df: pd.DataFrame) -> dict:
-        """
-        Backward-compatible schema normalizer.
-
-        Canonical keys:
-        - original_table   : locked snapshot from Excel import
-        - edited_table     : canonical working copy (original column names)
-        - renamed_columns  : display mapping old->new
-        - cell_groups      : groups stored with canonical column names
-        """
         if store is None:
             store = {}
 
         store.setdefault("renamed_columns", {})
 
-        # groups
         if "cell_groups" not in store:
             if "groups" in store and isinstance(store["groups"], dict):
                 store["cell_groups"] = store["groups"]
@@ -454,7 +566,6 @@ class Editor:
                 store["cell_groups"] = {}
         store["groups"] = store["cell_groups"]
 
-        # tables
         if "edited_table" not in store:
             if "table" in store:
                 store["edited_table"] = store["table"]
@@ -470,7 +581,6 @@ class Editor:
         return store
 
     def _ensure_experiment_in_tracker(self, exp_path: str, exp: Experiment):
-        """Ensure the editor tracker contains a full experiment bucket (without overwriting edits/groups)."""
         exp_entry = self.editor_data.setdefault(exp_path, {})
 
         try:
@@ -483,7 +593,6 @@ class Editor:
         exp_entry["source"]["mtime"] = mtime
         exp_entry.setdefault("imported_at", datetime.datetime.now().isoformat())
 
-        # exp_entry["metadata"] = exp.metadata if isinstance(exp.metadata, dict) else {}
         exp_entry["metadata"] = self._json_safe(exp.metadata if isinstance(exp.metadata, dict) else {})
         exp_entry.setdefault("reads", {})
 
@@ -491,7 +600,6 @@ class Editor:
             read_store = exp_entry["reads"].setdefault(read_name, {})
             read_store = self._normalize_read_store(read_store, read_df)
 
-            # lock snapshots if missing/empty
             if "original_table" not in read_store or not read_store["original_table"]:
                 read_store["original_table"] = read_df.to_dict(orient="records")
             if "edited_table" not in read_store or not read_store["edited_table"]:
@@ -523,12 +631,9 @@ class Editor:
 
         self.editor_data.setdefault(exp_path, {"reads": {}})
 
-        # metadata snapshot
-        # self.editor_data[exp_path]["metadata"] = exp.metadata
         self.editor_data[exp_path]["metadata"] = self._json_safe(exp.metadata)
         self._save_editor_tracker()
 
-        # ensure all structures exist
         self._ensure_experiment_in_tracker(exp_path, exp)
 
         exp_entry = self.editor_data[exp_path]
@@ -552,26 +657,41 @@ class Editor:
             st.error("No reads detected.")
             return
 
+        read_options = list(reads_dict.keys())
+
+        # session key that is unique per experiment
+        ss_key = f"selected_read__{exp_path}"
+
+        # initialize (first load) to first option
+        if ss_key not in st.session_state:
+            st.session_state[ss_key] = read_options[0]
+
+        # if stored value no longer exists (reads changed), fall back safely
+        if st.session_state[ss_key] not in read_options:
+            st.session_state[ss_key] = read_options[0]
+
+        # compute index for selectbox so it opens on the stored selection
+        idx = read_options.index(st.session_state[ss_key])
+
         read_name = st.selectbox(
             "**Select sub-dataset:**",
-            list(reads_dict.keys()),
-            key=f"read_selector_{exp_path}",
+            read_options,
+            index=idx,
+            key=f"read_selector_widget__{exp_path}",  # widget key (stable)
         )
+
+        # persist latest selection
+        st.session_state[ss_key] = read_name
 
         stored_read_df = pd.DataFrame(reads_dict[read_name]["edited_table"])
         self.render_read(exp_path, read_name, stored_read_df)
+
+
 
     # ------------------------------------------------------
     # READ VIEW
     # ------------------------------------------------------
     def render_read(self, exp_path: str, read_name: str, read_df: pd.DataFrame):
-        """
-        Render a single read:
-        - shows original snapshot (immutable)
-        - shows column renamer UI (between original and editable)
-        - lets user edit the table (display columns)
-        - persists edits to tracker in canonical/original column names
-        """
         st.subheader(f"{read_name} selected")
 
         exp_entry = self.editor_data.setdefault(exp_path, {"reads": {}, "metadata": {}})
@@ -581,56 +701,62 @@ class Editor:
         read_store = self._normalize_read_store(read_store, read_df)
         self._save_editor_tracker()
 
-        # Canonical dataframe (what we store in tracker)
         df_canonical = pd.DataFrame(read_store["edited_table"])
 
-        # 1) ORIGINAL (immutable)
         with st.expander("**Original**", expanded=False):
             st.dataframe(pd.DataFrame(read_store["original_table"]), use_container_width=True)
 
-        # 2) RENAME COLUMNS (must appear between Original and Editable)
         df_display = self.render_column_renamer(exp_path, read_name, df_canonical, read_store)
 
-        # (Optional) Keep the Editable header exactly as you like
-        st.subheader("Editable")
+        st.write("---")
+        colls = st.columns([9, 2])
+        with colls[0]:
+            st.markdown("**Editable table:** double-click a cell to change it. To start a new edition of this sub-dataset, click the **Reset Edits** button.")
+        with colls[1]:
+            if st.button("**Reset Edits**", key=f"reset_edits_{exp_path}_{read_name}"):
+                read_store["edited_table"] = list(read_store.get("original_table", []))
+                self._save_editor_tracker()
 
-        # 3) EDITABLE (display layer)
+                self._cache_report_tables(exp_path, read_name, read_store)
+                self._save_editor_tracker()
+
+                st.success("Edits reset to the original table.")
+                st.rerun()
+
         edited_display_df = st.data_editor(
             df_display,
             use_container_width=True,
             key=f"editor_{exp_path}_{read_name}",
         )
 
-        # 4) Persist edits back to CANONICAL column names in tracker
         edited_canonical_df = self._unapply_rename_map(
             edited_display_df,
             read_store.get("renamed_columns", {})
         )
         read_store["edited_table"] = edited_canonical_df.to_dict(orient="records")
         self._save_editor_tracker()
-        # Cache report-friendly tables (original/edited with display headers)
+
         self._cache_report_tables(exp_path, read_name, read_store)
         self._save_editor_tracker()
 
-
-        # Groups + stats work on DISPLAY df, but store canonical column names
         self.handle_cell_selection(exp_path, read_name, edited_display_df, read_store)
-        self.display_groups(edited_display_df, read_store)
+        self.display_groups(edited_display_df, read_store, exp_path, read_name)
         self.render_statistics(read_store, exp_path=exp_path, read_name=read_name)
+
+        # Call new methods here
+        self.statistic_graphics(read_store)
 
     # ------------------------------------------------------
     # CELL SELECTION & GROUPING
     # ------------------------------------------------------
     def handle_cell_selection(self, exp, read, df_display, store):
-        """
-        Handle interactive cell picking and saving groups.
-
-        Groups are stored with canonical/original column names so that future
-        changes to display names do not break selections/highlighting.
-        """
-        st.subheader("Select Cells to Create Groups")
-        st.info(
-            "To select a new group, click clear selection, then select the first cell of the new group and click clear selection again. Then proceed normally."
+        st.write("---")
+        st.subheader("Groups Creation")
+        st.markdown(
+            "**How to create a group:** Click each cell you want to include. When you have selected all cells, "
+            "enter a group name and click **Save group**. "
+            "To create a new group after saving one, select the first cell of the new group and click **Clear selection**. "
+            "Then proceed normally."
         )
 
         group_key = f"group_{exp}_{read}"
@@ -639,14 +765,27 @@ class Editor:
         st.session_state.setdefault(group_key, [])
         st.session_state.setdefault(name_key, "")
 
-        selected = st_table_select_cell(df_display)
+        df_select = df_display.copy()
+        safe_cols = [self._safe_column_name(c) for c in df_select.columns]
+
+        seen = {}
+        final_cols = []
+        for c in safe_cols:
+            seen[c] = seen.get(c, 0) + 1
+            final_cols.append(c if seen[c] == 1 else f"{c}_{seen[c]}")
+
+        safe_to_display = {s: d for d, s in zip(df_display.columns, final_cols)}
+        df_select.columns = final_cols
+
+        selected = st_table_select_cell(df_select)
 
         rename_map = store.get("renamed_columns", {}) or {}
-        inv_map = self._invert_rename_map(rename_map)  # new->old (display->canonical)
+        inv_map = self._invert_rename_map(rename_map)
 
         if selected:
             row = int(selected["rowId"])
-            display_col = str(df_display.columns[selected["colIndex"]])
+            safe_col = str(df_select.columns[selected["colIndex"]])
+            display_col = safe_to_display.get(safe_col, safe_col)
             canonical_col = inv_map.get(display_col, display_col)
 
             val = df_display.iat[row, selected["colIndex"]]
@@ -656,7 +795,7 @@ class Editor:
                 "value": val,
                 "row_index": row,
                 "row": self.index_to_letter(row),
-                "column": canonical_col,  # store canonical column
+                "column": canonical_col,
             }
 
             if cell_info not in st.session_state[group_key]:
@@ -666,23 +805,33 @@ class Editor:
             st.write("### Unsaved group")
             st.table(pd.DataFrame(st.session_state[group_key]))
 
+            # st.session_state[name_key] = st.text_input(
+            #     "Group name:",
+            #     value=st.session_state[name_key],
+            # )
+            # Auto-suggest a default group name based on the selected rows (only if empty)
+            if not st.session_state[name_key]:
+                st.session_state[name_key] = self._suggest_group_name_from_selection(st.session_state[group_key])
+
             st.session_state[name_key] = st.text_input(
                 "Group name:",
                 value=st.session_state[name_key],
-            )
+            ) ######################################
 
-            col_save, col_clear = st.columns(2)
+            col_save, col_clear = st.columns(2, gap="small")
 
             with col_save:
-                if st.button("Save group"):
+                if st.button("**Save group**"):
                     name = st.session_state[name_key]
                     if not name or name in store["cell_groups"]:
                         st.error("Invalid or duplicate group name.")
                         return
 
+                    s = self._numeric_series_from_cells(st.session_state[group_key])
+
                     store["cell_groups"][name] = {
                         "cells": st.session_state[group_key],
-                        "stats": self.calculate_statistics(pd.DataFrame(st.session_state[group_key])),
+                        "stats": self._compute_stats_row(s, ndigits=2),  # <-- 2 decimals
                         "color": self._assign_color(store["cell_groups"]),
                     }
 
@@ -693,22 +842,59 @@ class Editor:
                     st.rerun()
 
             with col_clear:
-                if st.button("Clear selection"):
+                if st.button("**Clear selection**"):
                     st.session_state[group_key] = []
                     st.session_state[name_key] = ""
                     st.rerun()
 
     # ------------------------------------------------------
-    # GROUP DISPLAY (FULL FEATURED)
+    # GROUP DISPLAY
     # ------------------------------------------------------
-    def display_groups(self, df_display, store):
+    def display_groups(self, df_display, store, exp_path: str, read_name: str):
         groups = store["cell_groups"]
         if not groups:
             return
 
+        st.write("---")
+
+        bulk_key = f"confirm_delete_all_groups_{exp_path}_{read_name}"
+        st.session_state.setdefault(bulk_key, False)
+
+        # colls = st.columns([8, 5, 3])  ## example of columns vs rows
+        # with colls[0]:
+        #     pass
+        # with colls[1]:
+        #     st.markdown("To delete all groups please click **Delete all groups** button.")
+        # with colls[2]:
+        #     if st.button("**Delete all groups**", key=f"delete_all_groups_btn_{exp_path}_{read_name}"):
+        #         st.session_state[bulk_key] = True
+        st.info("To delete all groups please click **Delete all groups** button.")
+        if st.button("**Delete all groups**", key=f"delete_all_groups_btn_{exp_path}_{read_name}"):
+            st.session_state[bulk_key] = True
+
+        if st.session_state[bulk_key]:
+            st.warning("Confirm deletion of ALL groups in this sub-dataset?")
+
+            col_yes, col_no = st.columns([2, 2], gap="small")
+            with col_yes:
+                if st.button("Yes", key=f"confirm_del_all_yes_{exp_path}_{read_name}"):
+                    store["cell_groups"].clear()
+                    st.session_state.pop("confirm_delete_group", None)
+
+                    if isinstance(store.get("report_payload"), dict):
+                        store["report_payload"].pop("stats", None)
+
+                    self._save_editor_tracker()
+                    st.session_state[bulk_key] = False
+                    st.rerun()
+
+            with col_no:
+                if st.button("No", key=f"confirm_del_all_no_{exp_path}_{read_name}"):
+                    st.session_state[bulk_key] = False
+                    st.rerun()
+
         st.subheader("Highlighted Groups")
 
-        # highlight uses canonical group columns + current rename map to find display columns
         st.dataframe(
             self.highlight_cells(df_display, groups, store.get("renamed_columns", {})),
             use_container_width=True
@@ -720,7 +906,7 @@ class Editor:
 
         for g_name, g_data in groups.items():
             color = g_data.get("color", "#DDD")
-            cols = st.columns([2, 6, 1, 2])
+            cols = st.columns([2, 8, 2, 1.5])
 
             with cols[0]:
                 st.markdown(f"### {g_name}")
@@ -735,24 +921,29 @@ class Editor:
                 st.markdown("**Statistics**")
                 stats = g_data.get("stats", {})
                 if stats and "Error" not in stats:
-                    st.table(pd.DataFrame(stats, index=["Value"]))
+                    # ensure display is 2 decimals (even if old groups exist)
+                    disp = {}
+                    for k, v in stats.items():
+                        disp[k] = self._round_stat(v, 2)
+                    display_stats = self._format_stats_for_display(stats, ndigits=2)
+                    st.table(pd.DataFrame(display_stats, index=["Value"]))
                 else:
                     st.warning(stats.get("Error", "No stats available"))
 
             with cols[2]:
-                if st.button("**Delete**", key=f"delete_group_{g_name}"):
+                if st.button("**Delete this group**", key=f"delete_group_{g_name}"):
                     st.session_state.confirm_delete_group = {"group": g_name}
 
                 if st.session_state.get("confirm_delete_group", {}).get("group") == g_name:
                     st.warning(f"Confirm deletion of '{g_name}'?")
-                    col_yes, col_no = st.columns([2, 2], gap="small")
+                    col_yes, col_no = st.columns([1, 1], gap="small")
                     with col_yes:
                         if st.button("Yes", key=f"confirm_del_yes_{g_name}"):
                             del store["cell_groups"][g_name]
                             self._save_editor_tracker()
                             st.rerun()
                     with col_no:
-                        if st.button("No", key=f"confirm_del_no_{g_name}"):
+                        if st.button("Cancel", key=f"confirm_del_no_{g_name}"):
                             del st.session_state.confirm_delete_group
                             st.rerun()
                     continue
@@ -778,17 +969,9 @@ class Editor:
     # STYLING HELPERS
     # ------------------------------------------------------
     def highlight_cells(self, df_display, groups, rename_map):
-        """
-        Highlight cells belonging to groups.
-
-        Groups store canonical/original column names.
-        We translate canonical -> display using rename_map (old->new).
-        """
         style = pd.DataFrame("", index=df_display.index, columns=df_display.columns)
 
-        # canonical -> display
         canonical_to_display = {str(old): str(new) for old, new in (rename_map or {}).items() if new}
-        # if not renamed, display == canonical
         for g in groups.values():
             for c in g["cells"]:
                 r = c["row_index"]
@@ -813,19 +996,12 @@ class Editor:
         group_colors = []
 
         for gname, gdata in groups.items():
-            cells = gdata.get("cells", [])
-            vals = []
-            for c in cells:
-                v = c.get("value", None)
-                v_num = pd.to_numeric(v, errors="coerce")
-                if pd.notna(v_num):
-                    vals.append(float(v_num))
-
-            if not vals:
+            s = self._numeric_series_from_cells(gdata.get("cells", []))
+            if s.empty:
                 continue
 
             group_names.append(str(gname))
-            group_values.append(vals)
+            group_values.append(s.tolist())
             group_colors.append(gdata.get("color", "#CCCCCC"))
 
         if not group_values:
@@ -835,84 +1011,71 @@ class Editor:
         rows = []
         for name, vals in zip(group_names, group_values):
             s = pd.Series(vals, dtype="float")
-            mean = s.mean()
-            sd = s.std(ddof=1) if len(s) > 1 else 0.0
-            rows.append({
-                "Group": name,
-                "N": int(len(s)),
-                "Mean": float(mean),
-                "Standard Deviation": float(sd),
-                "Coefficient of Variation": float(sd / mean) if mean != 0 else None,
-                "Min": float(s.min()),
-                "Max": float(s.max()),
-            })
+            row = {"Group": name}
+            row.update(self._compute_stats_row(s, ndigits=2))  # <-- 2 decimals
+            rows.append(row)
 
         stats_df = pd.DataFrame(rows).set_index("Group")
 
         st.subheader("Statistical Comparison")
+        ################### exemplo de adição posterior + os gráficos
+        # with st.expander("Statistics table (explicit)", expanded=True): 
+        #     st.dataframe(stats_df, use_container_width=True)
 
-        with st.expander("Statistics table (explicit)", expanded=True):
-            st.dataframe(stats_df, use_container_width=True)
-
+        st.info("To select which groups to appear, unmark **Add all groups**")
         with st.expander("Distribution (boxplot) + Mean ± SD", expanded=True):
-            fig, ax = plt.subplots(figsize=(8, 4))
+            # --- Choose which groups to plot ---
+            add_all = st.checkbox(
+                "Add all groups",
+                value=True,
+                key=f"plot_groups_all_{exp_path}_{read_name}" if exp_path and read_name else None
+            )
 
+            if add_all:
+                chosen = list(group_names)
+            else:
+                chosen = st.multiselect(
+                    "Groups to display:",
+                    options=group_names,
+                    default=list(group_names),  # optional: start with all selected
+                    key=f"plot_groups_{exp_path}_{read_name}" if exp_path and read_name else None
+                )
+
+            if not chosen:
+                st.info("Select at least one group to display the boxplot.")
+                return
+
+            # Filter based on chosen groups
+            idx = [i for i, g in enumerate(group_names) if g in chosen]
+            plot_names = [group_names[i] for i in idx]
+            plot_values = [group_values[i] for i in idx]
+            plot_colors = [group_colors[i] for i in idx]
+
+            fig, ax = plt.subplots(figsize=(8, 3.5))
             bp = ax.boxplot(
-                group_values,
-                labels=group_names,
+                plot_values,
+                labels=plot_names,
                 patch_artist=True,
                 showfliers=True
             )
 
-            for patch, color in zip(bp["boxes"], group_colors):
+            for patch, color in zip(bp["boxes"], plot_colors):
                 patch.set_facecolor(color)
                 patch.set_alpha(0.6)
 
-            means = [np.mean(v) for v in group_values]
-            sds = [np.std(v, ddof=1) if len(v) > 1 else 0.0 for v in group_values]
-            x = np.arange(1, len(group_values) + 1)
+            means = [np.mean(v) for v in plot_values]
+            sds = [np.std(v, ddof=1) if len(v) > 1 else 0.0 for v in plot_values]
+            x = np.arange(1, len(plot_values) + 1)
 
-            ax.errorbar(
-                x,
-                means,
-                yerr=sds,
-                fmt="o",
-                capsize=5,
-                linewidth=1,
-            )
-
-            ax.set_title("Group distributions with Mean ± SD overlay", fontsize=11)
-            ax.set_xlabel("Group", fontsize=9)
-            ax.set_ylabel("Value", fontsize=9)
+            ax.errorbar(x, means, yerr=sds, fmt="o", capsize=5, linewidth=0.7, markersize=6, elinewidth=0.7)
+            ax.set_title("Group distributions with Mean ± SD overlay", fontsize=9)
+            ax.set_xlabel("Group", fontsize=7)
+            ax.set_ylabel("Value", fontsize=7)
             ax.grid(axis="y", linestyle="--", alpha=0.4)
-            plt.xticks(rotation=45, ha="right")
+            plt.xticks(rotation=45, ha="right", fontsize=6)
+            plt.yticks(fontsize=6)
             plt.tight_layout()
-            st.pyplot(fig)
-
-        # with st.expander("Metric comparison charts (by group)", expanded=False):
-        #     metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
-
-        #     metric = st.selectbox(
-        #         "Choose metric to compare across groups:",
-        #         metrics,
-        #         key=f"metric_compare_{exp_path}_{read_name}" if exp_path and read_name else None
-        #     )
-
-        #     fig, ax = plt.subplots(figsize=(7, 3))
-
-        #     colors = [
-        #         store["cell_groups"][g]["color"] if g in store["cell_groups"] else "#CCCCCC"
-        #         for g in stats_df.index.astype(str)
-        #     ]
-
-        #     ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
-        #     ax.set_title(f"{metric} by Group", fontsize=11)
-        #     ax.set_xlabel("Group", fontsize=9)
-        #     ax.set_ylabel(metric, fontsize=9)
-        #     ax.grid(axis="y", linestyle="--", alpha=0.4)
-        #     plt.xticks(rotation=45, ha="right")
-        #     plt.tight_layout()
-        #     st.pyplot(fig)
+            st.pyplot(fig) ###########################
 
         store.setdefault("report_payload", {})
         store["report_payload"]["stats"] = {
@@ -920,7 +1083,7 @@ class Editor:
             "group_colors": {name: color for name, color in zip(group_names, group_colors)},
             "distributions": {name: vals for name, vals in zip(group_names, group_values)},
             "stats_table": stats_df.reset_index().to_dict(orient="records"),
-            # "available_metrics": metrics,
+            "available_metrics": [c for c in stats_df.reset_index().columns if c != "Group"],
         }
 
         self._save_editor_tracker()
@@ -959,5 +1122,76 @@ class Editor:
         st.markdown(html, unsafe_allow_html=True)
 
 
-### passar tentativa do chatgpt. data e hora a passar da metadata para o editor e depois report. verificar como está o dar nome às cols. 
-# se data e hora, entao perguntar se se quer adicionar o campo "novamente"
+    # Para criar uma nova função à aplicação basta adicionar o método desejado e de seguida 
+    # chamar o método aqui -> # === Data Editor UI ===
+    def statistic_graphics(self, sub_data):
+        """Display collapsible charts comparing group statistics."""
+        groups = sub_data.get("cell_groups", {})
+        if not groups:
+            st.info("No groups saved.")
+            return
+
+        # Gather all stats into a DataFrame for easy plotting
+        stats_data = []
+        for g_name, g_data in groups.items():
+            stats = g_data.get("stats", {})
+            if stats and "Error" not in stats:
+                row = {"Group": g_name}
+                row.update(stats)
+                stats_data.append(row)
+
+        if not stats_data:
+            st.warning("No valid numerical statistics found.")
+            return
+
+        stats_df = pd.DataFrame(stats_data).set_index("Group")
+
+        # --- Collapsible visualizations ---
+        st.subheader("📊 Statistical Comparisons")
+
+        # Define the metrics to visualize (order matters here)
+        metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
+
+        # Create a column per metric so expanders align horizontally
+        cols = st.columns(len(metrics))
+
+        for i, metric in enumerate(metrics):
+            # Skip metrics not present in the assembled stats_df
+            if metric not in stats_df.columns:
+                continue
+
+            with cols[i]:
+                with st.expander(f"Show {metric} comparison", expanded=False):
+                    # local import to avoid relying on module-level plt import
+                    import matplotlib.pyplot as plt
+
+                    fig, ax = plt.subplots(figsize=(4, 3))
+
+                    # Ensure colors follow the order of stats_df rows (groups)
+                    # If the group's color is missing, fallback to a neutral gray.
+                    colors = []
+                    for grp in stats_df.index.astype(str):
+                        color = groups.get(grp, {}).get("color")
+                        if color is None:
+                            # fallback: try to find by substring match (in case keys differ)
+                            found = False
+                            for gname, ginfo in groups.items():
+                                if gname == grp or str(gname) == str(grp):
+                                    color = ginfo.get("color")
+                                    found = True
+                                    break
+                            if not found:
+                                color = "#A0A0A0"
+                        colors.append(color)
+
+                    # Draw bar chart
+                    ax.bar(stats_df.index.astype(str), stats_df[metric], color=colors)
+                    ax.set_title(f"{metric} by Group", fontsize=11)
+                    ax.set_xlabel("Group", fontsize=9)
+                    ax.set_ylabel(metric, fontsize=9)
+                    ax.grid(axis="y", linestyle="--", alpha=0.6)
+
+                    # Improve x-label readability
+                    plt.xticks(rotation=45, ha="right", fontsize=9)
+                    plt.tight_layout()
+                    st.pyplot(fig)

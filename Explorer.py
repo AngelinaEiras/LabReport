@@ -144,7 +144,7 @@ def get_number():
     num_docs = sum(1 for info in file_data.values() if info)
 
     return st.info(
-        f"🧪 **{num_experiments}** Experiments Tracked, from a total of **{num_docs}** documents added."
+        f"**{num_experiments}** Experiments Tracked, from a total of **{num_docs}** documents added."
     )
 
 

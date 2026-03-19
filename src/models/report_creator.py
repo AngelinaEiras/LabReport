@@ -123,13 +123,36 @@ class ExperimentReportManager:
         )
 
     # ==========================================================
-    # SIMPLE HTML ESCAPE
+    # SIMPLE HTML ESCAPE and legend generation for the Highlighted tab
     # ==========================================================
     def _escape_html(self, s: str) -> str:
         """
         Escape a string for safe HTML embedding.
         """
         return _html.escape(s)
+
+    def generate_groups_legend_html(self, groups: dict) -> str:
+        """
+        Generate a compact vertical legend for highlighted groups.
+        """
+        if not groups:
+            return ""
+
+        html = "<div style='display:flex;flex-direction:column;gap:8px;'>"
+
+        for name, g in groups.items():
+            color = g.get("color", "#CCCCCC")
+            html += (
+                "<div style='display:flex;align-items:center;gap:6px;'>"
+                f"<div style='width:14px;height:14px;"
+                f"background:{color};border:1px solid #444;'></div>"
+                f"<span style='font-size:0.9em;'>{name}</span>"
+                "</div>"
+            )
+
+        html += "</div>"
+        return html
+
 
     # ==========================================================
     # METADATA UI (STANDARD + CUSTOM)
@@ -239,7 +262,7 @@ class ExperimentReportManager:
 
                 # delete button
                 with cols[2]:
-                    if st.button("🗑️", key=f"del_custom_{unique_key_prefix}_{self.safe_key(k)}"):
+                    if st.button("**Delete**", key=f"del_custom_{unique_key_prefix}_{self.safe_key(k)}"):
                         deleted_keys.append(k)
 
         # Apply deletions after rendering (avoid mutating dict mid-loop)
@@ -642,6 +665,23 @@ class ExperimentReportManager:
 
             html += f"<h2>{self._escape_html(str(title))}</h2>"
 
+            # ------------------ Sub-dataset (read-level) metadata ------------------ ###############################################################
+            read_meta = read.get("read_metadata", {}) or {}
+            if read_meta:
+                # html += "<h3>Sub-dataset metadata</h3>"
+                # html += "<div style='margin:6px 0 2px 0;'>"
+
+                for k, v in read_meta.items():
+                    if isinstance(v, list):
+                        # join multi-line blocks as paragraphs
+                        html += (
+                            f"<p><strong>{self._escape_html(str(k))}:</strong><br/>"
+                            + "<br/>".join(self._escape_html(str(x)) for x in v)
+                            + "</p>"
+                        )
+                    else:
+                        html += f"<p><strong>{self._escape_html(str(k))}:</strong> {self._escape_html(str(v))}</p>"
+
             # ------------------ Original table ------------------
             if include.get("include_original", False):
                 html += "<h3>Original table</h3>"
@@ -667,12 +707,12 @@ class ExperimentReportManager:
                 html += self.generate_highlighted_html_table(base_df, groups)
 
                 # Add color legend
-                html += "<h4>Color legend</h4><div style='display:flex;flex-wrap:wrap;gap:10px;'>"
+                html += "<h4>Color legend</h4><div style='display:flex;flex-wrap:wrap;'>"
                 for gname, ginfo in groups.items():
                     color = ginfo.get("color", "#DDD")
                     html += (
-                        f"<span style='display:inline-flex;align-items:center;gap:6px;'>"
-                        f"<span style='width:14px;height:14px;background:{color};border:1px solid #444;display:inline-block;'></span>"
+                        f"<span style='display:inline-flex;align-items:center;gap:10px; padding:2px 4px;margin-right:2px;'>"
+                        f"<span style='width:14px;height:14px;background:{color};border:1px solid #444;display:inline-block; margin-right:2px;'></span>"
                         f"<span>{self._escape_html(str(gname))}</span></span>"
                     )
                 html += "</div>"
@@ -703,8 +743,8 @@ class ExperimentReportManager:
                             <p style='font-size:9pt;'>Boxplot with Mean ± SD overlay</p>
                         </div>
                         """
-
-                    # -------- Metric comparison charts --------
+ 
+                    # -------- Metric comparison charts -------- ##################### adicionar como exemplo
                     if include.get("include_metric_charts", False):
                         html += "<h3>Metric comparison charts</h3>"
                         metrics = ["Mean", "Standard Deviation", "Coefficient of Variation", "Min", "Max"]
@@ -837,9 +877,9 @@ class ExperimentReportManager:
                     color = ginfo.get("color", "#DDD")
                     safe_name = self._escape_html(str(gname))
                     legend_items.append(
-                        f"<span style='display:inline-flex; align-items:center; margin-right:12px; margin-bottom:6px;'>"
+                        f"<span style='display:inline-flex; align-items:center; margin-right:12px; margin-bottom:16px;'>"
                         f"<span style='width:16px; height:16px; background:{color}; border:1px solid #555; "
-                        f"display:inline-block; margin-right:6px;'></span>"
+                        f"display:inline-block; margin-right:16px;'></span>"
                         f"<span style='font-size:0.9em; color:#333;'>{safe_name}</span>"
                         f"</span>"
                     )

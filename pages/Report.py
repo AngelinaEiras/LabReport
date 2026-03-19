@@ -183,15 +183,18 @@ def main():
     # ==========================================================
     # REPORT STORAGE STRUCTURE
     # ==========================================================
+    # exp_report_entry = report_data.setdefault(selected_experiment, {})
+    # exp_report_entry.setdefault("general_metadata", {})
+    # exp_report_entry.setdefault("read_includes", {})
+    # exp_report_entry.setdefault("subdataset_metadata", {})  # backwards compat
     exp_report_entry = report_data.setdefault(selected_experiment, {})
     exp_report_entry.setdefault("general_metadata", {})
-    exp_report_entry.setdefault("read_includes", {})
-    exp_report_entry.setdefault("subdataset_metadata", {})  # backwards compat
+    exp_report_entry.setdefault("reads", {})  # <-- per-read storage: include + custom_fields
 
     # ==========================================================
     # SHOW EXCEL METADATA (READ-ONLY)
     # ==========================================================
-    with st.expander("Excel metadata found in the file (from Editor)", expanded=True):
+    with st.expander("**Excel metadata from Editor**", expanded=True):
         if not excel_metadata:
             st.info("No metadata was found / saved from the Excel file.")
         else:
@@ -209,7 +212,7 @@ def main():
     # ==========================================================
     # GENERAL METADATA FORM (prefill from Excel if empty)
     # ==========================================================
-    st.markdown("#### General Metadata Fields")
+    st.markdown("#### General Information Fields")
 
     # Prefill helper: if report field empty, try Excel meta
     gm = exp_report_entry["general_metadata"]
@@ -225,7 +228,7 @@ def main():
 
     metadata_fields = {
         "Timepoint": {"type": "text_input", "default_source": _prefill("Timepoint", "")},
-        "Experiment Type": {"type": "text_input", "default_source": _prefill("Experiment Type", "")},
+        # "Experiment Type": {"type": "text_input", "default_source": _prefill("Experiment Type", "")},
         "Test Item": {"type": "text_input", "default_source": _prefill("Test Item", "")},
         "Test System": {"type": "text_input", "default_source": _prefill("Test System", "")},
         "Seeding density": {"type": "text_input", "default_source": _prefill("Seeding density", "")},
@@ -237,7 +240,7 @@ def main():
             "type": "text_input",
             "default_source": _prefill("Passage of the Used Test System", ""),
         },
-    }
+    } # here new predetermined questions can be added
 
     # If values are empty, seed them once from default_source (so widgets show it)
     # This also makes sure they persist after saving.
@@ -254,7 +257,7 @@ def main():
     # ==========================================================
     # CUSTOM METADATA
     # ==========================================================
-    st.markdown("#### Custom General Fields")
+    st.markdown("#### Custom Information Fields")
 
     custom_changed = manager.display_custom_metadata(
         gm,
@@ -276,15 +279,15 @@ def main():
     # READ SELECTION UI
     # ==========================================================
     st.markdown("---")
-    st.subheader("Reads available for report")
+    st.subheader("Sub-datasets available for report")
 
     PARTS = [
         ("include_original", "Original table"),
         ("include_edited", "Edited table"),
-        ("include_highlighted", "Highlighted (groups)"),
-        ("include_stats_table", "Stats table"),
+        ("include_highlighted", "Highlighted groups"),
+        ("include_stats_table", "Groups statistics"),
         ("include_boxplot", "Boxplot + Mean±SD"),
-        # ("include_metric_charts", "Metric comparison charts"),
+        # ("include_metric_charts", "Metric comparison charts"), #### acrescentar para mostrar diferenças
     ]
 
     read_names = list(exp_reads.keys())
@@ -325,7 +328,10 @@ def main():
             "include_metric_charts": has_groups,
         }
 
-        include_cfg = exp_report_entry["read_includes"].setdefault(read_name, defaults.copy())
+        # include_cfg = exp_report_entry["read_includes"].setdefault(read_name, defaults.copy())
+        read_entry = exp_report_entry["reads"].setdefault(read_name, {})
+        include_cfg = read_entry.setdefault("include", defaults.copy())
+        custom_fields = read_entry.setdefault("custom_fields", {})
 
         # --- Build expander label with selection summary ---
         label = f"{read_name}"
@@ -347,7 +353,7 @@ def main():
 
 
         with st.expander(label, expanded=False):
-            c1, c2, c3 = st.columns([1, 1, 3])
+            c1, c2, c3 = st.columns([1, 1, 7])
 
             with c1:
                 if st.button("Select all", key=f"sel_all_{selected_experiment}_{read_name}"):
@@ -369,6 +375,8 @@ def main():
                     manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
                     st.rerun()
 
+            with c3:
+                st.info("Possible fields to add to the report. If none is selected, the sub-dataset will not be included in the report.")
             st.write("")
 
             for key, title in PARTS:
@@ -377,10 +385,19 @@ def main():
 
                 if key == "include_edited" and not has_edits:
                     disabled = True
-                    help_txt = "No edites detected."
+                    help_txt = "No edits detected."
                     include_cfg[key] = False
 
-                if key in ("include_highlighted", "include_stats_table", "include_boxplot", "include_metric_charts") and not has_groups:
+                if key == "include_highlighted":
+                    help_txt = (
+                        "Highlighted groups are shown on the edited table when edits exist; "
+                        "otherwise, the original table is used."
+                    )
+                    if not has_groups:
+                        disabled = True
+                        include_cfg[key] = False
+
+                if key in ("include_stats_table", "include_boxplot", "include_metric_charts") and not has_groups:
                     disabled = True
                     help_txt = "No groups exist for this read."
                     include_cfg[key] = False
@@ -397,9 +414,10 @@ def main():
                     include_cfg[key] = new_val
                     manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
 
+
             st.write("---")
 
-            tabs = st.tabs(["Preview original", "Preview edited", "Preview highlighted"])
+            tabs = st.tabs(["Original table", "Edited table", "Highlighted groups", "Custom fields"])
 
             with tabs[0]:
                 if orig_df.empty:
@@ -409,7 +427,7 @@ def main():
 
             with tabs[1]:
                 if not has_edits:
-                    st.info("No edited version (or no changes).")
+                    st.info("No edited version detected.")
                 else:
                     st.dataframe(edit_df, use_container_width=True)
 
@@ -418,8 +436,42 @@ def main():
                     st.info("No groups to highlight.")
                 else:
                     base_df = edit_df if has_edits else orig_df
-                    html = manager.generate_highlighted_html_table(base_df, groups_for_display)
-                    st.markdown(html, unsafe_allow_html=True)
+
+                    table_html = manager.generate_highlighted_html_table(
+                        base_df, groups_for_display
+                    )
+
+                    legend_html = manager.generate_groups_legend_html(
+                        groups_for_display
+                    )
+
+                    col_table, col_legend = st.columns([4, 1])
+
+                    with col_table:
+                        st.markdown(table_html, unsafe_allow_html=True)
+
+                    with col_legend:
+                        st.markdown("**Legend**")
+                        st.markdown(legend_html, unsafe_allow_html=True)
+
+            with tabs[3]:
+                # Show/edit existing custom fields for THIS read only
+                custom_changed = manager.display_custom_metadata(
+                    current_metadata_dict=custom_fields,
+                    predefined_fields_dict={},  # nothing excluded
+                    unique_key_prefix=f"{selected_experiment}__{read_name}__custom"
+                )
+
+                custom_added = manager.add_custom_metadata_field(
+                    current_metadata=custom_fields,
+                    subdataset_key=f"{selected_experiment}__{read_name}__custom_add"
+                )
+
+                if custom_changed or custom_added:
+                    manager.save_json_file(report_data, path="TRACKERS/report_metadata_tracker.json")
+                    st.success("Saved custom fields for this sub-dataset.")
+                    st.rerun()
+
 
     # ==========================================================
     # REPORT GENERATION
@@ -440,7 +492,10 @@ def main():
             if not isinstance(read_store, dict):
                 continue
 
-            include_cfg = exp_report_entry.get("read_includes", {}).get(read_name, {})
+            read_entry = (exp_report_entry.get("reads", {}) or {}).get(read_name, {}) or {}
+            #include_cfg = exp_report_entry.get("read_includes", {}).get(read_name, {})
+            include_cfg = read_entry.get("include", {}) or {}
+            custom_fields = read_entry.get("custom_fields", {}) or {}
             if not any(include_cfg.values()):
                 continue
 
@@ -458,14 +513,18 @@ def main():
 
             stats_payload = (read_store.get("report_payload") or {}).get("stats", {})
 
+            # Pull per-read custom metadata from report tracker
+            sub_meta = (exp_report_entry.get("subdataset_metadata", {}) or {}).get(read_name, {}) or {}
             all_reads_payload.append({
                 "title": read_name,
                 "include": include_cfg,
                 "original_df": original_df,
                 "edited_df": edited_df,
-                "cell_groups": groups_for_display,  # display-safe group columns
+                "cell_groups": groups_for_display,
                 "stats_payload": stats_payload,
+                "read_metadata": custom_fields,  # <-- per-read custom fields
             })
+
 
         if not all_reads_payload:
             st.warning("Nothing selected. Please select at least one part from at least one read.")
@@ -489,3 +548,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
