@@ -1,7 +1,10 @@
 streamlit==1.41.1        # Main UI
-pandas==1.5.3            # Data handling
-numpy==1.23.5            # (Optional, used lightly)
-python-dotenv==0.19.2    # Optional, for environment configs
-weasyprint==64.0         # For HTML -> PDF
-st-table-select-cell==0.3.4    # Custom cell selector (streamlit plugin)
-pytest==8.4.1
+pandas==2.2.3            # Data handling
+numpy==1.26.4            # Numerical arrays and math
+python-dotenv==0.19.2    # Optional environment variables
+weasyprint==64.0         # HTML to PDF conversion
+streamlit-table-select-cell==0.3.4    # Streamlit table cell selector plugin
+pytest==8.4.1            # Testing framework
+openpyxl==3.1.3          # Excel file reading/writing
+pydantic==2.11.10        # Data validation/models
+matplotlib==3.7.2        # Plotting for reports
