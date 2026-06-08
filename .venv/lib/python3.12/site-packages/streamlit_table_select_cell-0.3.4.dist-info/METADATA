@@ -1,0 +1,60 @@
+Metadata-Version: 2.1
+Name: streamlit-table-select-cell
+Version: 0.3.4
+Summary: Streamlit component that allows you to select|click a cell in a table and get its rowId and columnIndex
+Home-page: https://github.com/songjinghe/streamlit-table-select-cell
+Author: Jinghe Song
+Author-email: sjh.drizzle@foxmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: streamlit (>=1.30.0)
+Provides-Extra: devel
+Requires-Dist: wheel ; extra == 'devel'
+Requires-Dist: pytest (==7.4.0) ; extra == 'devel'
+Requires-Dist: playwright (==1.36.0) ; extra == 'devel'
+Requires-Dist: requests (==2.31.0) ; extra == 'devel'
+Requires-Dist: pytest-playwright-snapshot (==1.0) ; extra == 'devel'
+Requires-Dist: pytest-rerunfailures (==12.0) ; extra == 'devel'
+
+# streamlit-table-select-cell
+
+Streamlit component that allows you to select|click a cell in a table and get its rowId and columnIndex.
+This is very useful when you want to dig into the detail of a cell in a pivoted dataframe.
+
+## Installation instructions
+
+```sh
+pip install streamlit-table-select-cell
+```
+
+## Example
+
+```python
+import streamlit as st
+import pandas as pd
+from st_table_select_cell import st_table_select_cell
+
+st.subheader("Example of st_table_select_cell")
+
+data = pd.DataFrame({'Dataset':['energy','traffic','syn'], 'Test':['ehistory','snapshot','aggmax'], 'PG': [3,6,9], 'TG':[2,5,7]})
+st.dataframe(data)
+
+selectedCell = st_table_select_cell(data)
+st.write(selectedCell)
+
+if selectedCell:
+    rowId = selectedCell['rowId']
+    colIndex = selectedCell['colIndex']
+    st.info('cell "{}" selected at row {} and col {} ({})'.format(
+        data.iat[int(rowId), colIndex], rowId, colIndex, data.columns[colIndex]))
+    st.write('selected row data: ', data.iloc[int(rowId)].to_dict())
+else:
+    st.warning('no select')
+```
+
+## Notes
+version 0.3.3 only compatible with streamlit 1.30.0
+version 0.3.4 is tested and compatible with streamlit 1.37.0 or higher
+
