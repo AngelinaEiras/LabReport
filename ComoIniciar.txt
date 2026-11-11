@@ -1,0 +1,2 @@
+cd /home/angelina/Desktop/final_LabReport
+/home/angelina/Desktop/final_LabReport/.venv/bin/python -m streamlit run Explorer.py --server.headless true --server.port 8501
