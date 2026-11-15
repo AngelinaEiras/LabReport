@@ -51,7 +51,7 @@ from src.models.file_selector import Selector  # Handles file selection + metada
 # =============================================================================
 st.set_page_config(
     page_title="File Tracker & Experiments",     # Title on browser tab
-    page_icon="images/page_icon2.png",           # Favicon / tab icon
+    page_icon="images/page_icon.png",           # Favicon / tab icon
     layout="wide",                               # Full-width layout
     initial_sidebar_state="expanded"             # Sidebar opened by default
 )
@@ -83,7 +83,7 @@ def get_base64_image(image_path: str) -> str:
 
 
 # Preload logo once
-img_base64 = get_base64_image("images/logo9.png")
+img_base64 = get_base64_image("images/logo.png")
 
 
 def add_logo():

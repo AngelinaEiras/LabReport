@@ -51,7 +51,7 @@ def get_base64_image(image_path: str) -> str:
         return base64.b64encode(img_file.read()).decode()
 
 
-img_base64 = get_base64_image("images/logo9.png")
+img_base64 = get_base64_image("images/logo.png")
 
 
 def add_logo():
@@ -140,7 +140,7 @@ def _translate_groups_to_display(groups: dict, rename_map_old_to_new: dict) -> d
 # ==========================================================
 def main():
     st.set_page_config(
-        page_icon="images/page_icon2.png",
+        page_icon="images/page_icon.png",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -159,7 +159,7 @@ def main():
     report_data = manager.load_json_file("TRACKERS/report_metadata_tracker.json")
 
     if not editor_data:
-        st.warning("No experiment data found in TRACKERS/editor_file_tracker.json")
+        st.warning("No experiment data found. Please run the Editor first to add experiments.")
         st.stop()
 
     # ==========================================================

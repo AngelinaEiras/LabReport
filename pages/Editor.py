@@ -27,6 +27,7 @@ Important notes
 import streamlit as st
 import json
 import base64
+import os
 
 # The main Editor UI class (contains the full editor logic)
 from src.models.editorial import Editor
@@ -57,7 +58,7 @@ def get_base64_image(image_path: str) -> str:
 
 
 # Preload logo once (so we don't read file repeatedly)
-img_base64 = get_base64_image("images/logo9.png")
+img_base64 = get_base64_image("images/logo.png")
 
 
 def add_logo():
@@ -100,7 +101,7 @@ def add_logo():
 # =============================================================================
 # Must be called before rendering most UI elements.
 st.set_page_config(
-    page_icon="images/page_icon2.png",   # Icon shown in browser tab
+    page_icon="images/page_icon.png",   # Icon shown in browser tab
     layout="wide",                      # Full-width layout
     initial_sidebar_state="expanded"    # Sidebar open by default
 )
@@ -124,25 +125,84 @@ st.header("Manage editions and data visualization")
 # =============================================================================
 # LOAD EXPERIMENT LIST FROM TRACKER
 # =============================================================================
-# file_tracker.json is your “master list” of files added to the app.
-# Each entry should look like:
-# {
-#   "path/to/file.xlsx": {
-#       "metadata": {...},
-#       "note": "...",
-#       "is_experiment": true
-#   },
-#   ...
-# }
-with open("TRACKERS/file_tracker.json") as f:
+# # file_tracker.json is your “master list” of files added to the app.
+# # Each entry should look like:
+# # {
+# #   "path/to/file.xlsx": {
+# #       "metadata": {...},
+# #       "note": "...",
+# #       "is_experiment": true
+# #   },
+# #   ...
+# # }
+
+# with open("TRACKERS/file_tracker.json") as f:
+#     tracker_data = json.load(f)
+
+
+# # Store a filtered list of only experiment files in session_state.
+# # The Editor class expects st.session_state.experiments_list to exist.
+# st.session_state.experiments_list = [
+#     path for path, info in tracker_data.items()
+#     if info.get("is_experiment", False)
+# ]
+
+
+# tracker_path = "TRACKERS/file_tracker.json"
+
+# # Check whether the tracker file exists
+# if not os.path.exists(tracker_path):
+#     st.warning("No data available. Please add files to the tracker first.")
+#     st.stop()
+
+# # Load tracker data
+# with open(tracker_path, "r") as f:
+#     tracker_data = json.load(f)
+
+# # Check whether the tracker is empty
+# if not tracker_data:
+#     st.warning("No data available. Please add files to the tracker first.")
+#     st.stop()
+
+# # Filter only files marked as experiments
+# st.session_state.experiments_list = [
+#     path for path, info in tracker_data.items()
+#     if info.get("is_experiment", False)
+# ]
+
+# # Check whether there are any experiments
+# if not st.session_state.experiments_list:
+#     st.info("No experiments available. Please add or mark files as experiments.")
+#     st.stop()
+
+
+tracker_path = "TRACKERS/file_tracker.json"
+
+# Check whether the tracker file exists
+if not os.path.exists(tracker_path):
+    st.warning("No data available. Please add files first.")
+    st.stop()
+
+# Load tracker data
+with open(tracker_path, "r") as f:
     tracker_data = json.load(f)
 
-# Store a filtered list of only experiment files in session_state.
-# The Editor class expects st.session_state.experiments_list to exist.
+# Check whether the tracker is empty
+if not tracker_data:
+    st.warning("No data available. Please add files first.")
+    st.stop()
+
+# Filter only files marked as experiments
 st.session_state.experiments_list = [
     path for path, info in tracker_data.items()
     if info.get("is_experiment", False)
 ]
+
+# Check whether there are any experiments
+if not st.session_state.experiments_list:
+    st.info("No experiments available. Please add or mark files as experiments.")
+    st.stop()
+
 
 
 # =============================================================================
