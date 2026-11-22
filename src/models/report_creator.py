@@ -668,8 +668,6 @@ class ExperimentReportManager:
             # ------------------ Sub-dataset (read-level) metadata ------------------ ###############################################################
             read_meta = read.get("read_metadata", {}) or {}
             if read_meta:
-                # html += "<h3>Sub-dataset metadata</h3>"
-                # html += "<div style='margin:6px 0 2px 0;'>"
 
                 for k, v in read_meta.items():
                     if isinstance(v, list):

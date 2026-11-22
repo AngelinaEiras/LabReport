@@ -260,7 +260,6 @@ class Experiment(BaseModel):
 
 
         # Iterate through the raw Excel rows
-        # for _, row in df.iterrows():
         for _, row in meta_df.iterrows():
 
             # Clean: keep only non-empty string cells
@@ -516,8 +515,7 @@ class Experiment(BaseModel):
             # Candidate data is everything between first cell and last cell
             data = vals[1:-1]
 
-            # Drop leading non-numeric columns (letters, blanks, etc.)
-            # until first numeric is found.
+            # Drop leading non-numeric columns (letters, blanks, etc.) until first numeric is found.
             while data:
                 v = data[0]
                 try:

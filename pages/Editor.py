@@ -125,56 +125,6 @@ st.header("Manage editions and data visualization")
 # =============================================================================
 # LOAD EXPERIMENT LIST FROM TRACKER
 # =============================================================================
-# # file_tracker.json is your “master list” of files added to the app.
-# # Each entry should look like:
-# # {
-# #   "path/to/file.xlsx": {
-# #       "metadata": {...},
-# #       "note": "...",
-# #       "is_experiment": true
-# #   },
-# #   ...
-# # }
-
-# with open("TRACKERS/file_tracker.json") as f:
-#     tracker_data = json.load(f)
-
-
-# # Store a filtered list of only experiment files in session_state.
-# # The Editor class expects st.session_state.experiments_list to exist.
-# st.session_state.experiments_list = [
-#     path for path, info in tracker_data.items()
-#     if info.get("is_experiment", False)
-# ]
-
-
-# tracker_path = "TRACKERS/file_tracker.json"
-
-# # Check whether the tracker file exists
-# if not os.path.exists(tracker_path):
-#     st.warning("No data available. Please add files to the tracker first.")
-#     st.stop()
-
-# # Load tracker data
-# with open(tracker_path, "r") as f:
-#     tracker_data = json.load(f)
-
-# # Check whether the tracker is empty
-# if not tracker_data:
-#     st.warning("No data available. Please add files to the tracker first.")
-#     st.stop()
-
-# # Filter only files marked as experiments
-# st.session_state.experiments_list = [
-#     path for path, info in tracker_data.items()
-#     if info.get("is_experiment", False)
-# ]
-
-# # Check whether there are any experiments
-# if not st.session_state.experiments_list:
-#     st.info("No experiments available. Please add or mark files as experiments.")
-#     st.stop()
-
 
 tracker_path = "TRACKERS/file_tracker.json"
 

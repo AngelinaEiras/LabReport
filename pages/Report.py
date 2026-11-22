@@ -183,10 +183,6 @@ def main():
     # ==========================================================
     # REPORT STORAGE STRUCTURE
     # ==========================================================
-    # exp_report_entry = report_data.setdefault(selected_experiment, {})
-    # exp_report_entry.setdefault("general_metadata", {})
-    # exp_report_entry.setdefault("read_includes", {})
-    # exp_report_entry.setdefault("subdataset_metadata", {})  # backwards compat
     exp_report_entry = report_data.setdefault(selected_experiment, {})
     exp_report_entry.setdefault("general_metadata", {})
     exp_report_entry.setdefault("reads", {})  # <-- per-read storage: include + custom_fields
@@ -228,7 +224,6 @@ def main():
 
     metadata_fields = {
         "Timepoint": {"type": "text_input", "default_source": _prefill("Timepoint", "")},
-        # "Experiment Type": {"type": "text_input", "default_source": _prefill("Experiment Type", "")},
         "Test Item": {"type": "text_input", "default_source": _prefill("Test Item", "")},
         "Test System": {"type": "text_input", "default_source": _prefill("Test System", "")},
         "Seeding density": {"type": "text_input", "default_source": _prefill("Seeding density", "")},
@@ -287,7 +282,8 @@ def main():
         ("include_highlighted", "Highlighted groups"),
         ("include_stats_table", "Groups statistics"),
         ("include_boxplot", "Boxplot + Mean±SD"),
-        # ("include_metric_charts", "Metric comparison charts"), #### acrescentar para mostrar diferenças
+        # ("include_metric_charts", "Metric comparison charts"), #### acrescentar aqui se novas funcionalidades 
+        # forem adicionadas para gerar gráficos de comparação de métricas
     ]
 
     read_names = list(exp_reads.keys())

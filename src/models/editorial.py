@@ -805,10 +805,6 @@ class Editor:
             st.write("### Unsaved group")
             st.table(pd.DataFrame(st.session_state[group_key]))
 
-            # st.session_state[name_key] = st.text_input(
-            #     "Group name:",
-            #     value=st.session_state[name_key],
-            # )
             # Auto-suggest a default group name based on the selected rows (only if empty)
             if not st.session_state[name_key]:
                 st.session_state[name_key] = self._suggest_group_name_from_selection(st.session_state[group_key])
@@ -860,14 +856,6 @@ class Editor:
         bulk_key = f"confirm_delete_all_groups_{exp_path}_{read_name}"
         st.session_state.setdefault(bulk_key, False)
 
-        # colls = st.columns([8, 5, 3])  ## example of columns vs rows
-        # with colls[0]:
-        #     pass
-        # with colls[1]:
-        #     st.markdown("To delete all groups please click **Delete all groups** button.")
-        # with colls[2]:
-        #     if st.button("**Delete all groups**", key=f"delete_all_groups_btn_{exp_path}_{read_name}"):
-        #         st.session_state[bulk_key] = True
         st.info("To delete all groups please click **Delete all groups** button.")
         if st.button("**Delete all groups**", key=f"delete_all_groups_btn_{exp_path}_{read_name}"):
             st.session_state[bulk_key] = True

@@ -47,8 +47,6 @@ class ExcellImporter:
     sheet_name = "Plate 1 - Sheet1 (2)"
     ############
     
-    # excell_file = pd.ExcelFile(path)
-    # self.csv_file = pd.read_excel(excell_file, sheet_name=sheet_name).to_csv (sheet_name+".csv", index = None, header=True)
     wb = load_workbook(filename = path)
     ws = wb.get_sheet_by_name(sheet_name)
     print(ws.dimensions)
